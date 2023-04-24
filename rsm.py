@@ -42,9 +42,10 @@ class Follower(rsm_pb2_grpc.RSMServicer):
             return rsm_pb2.AppendEntriesResponse(success=False, index=len(self.rsm.log))
         for e in request.entries:
             # TODO persist replicated log
-            # TODO update zk cluster file
             self.rsm.log.append(e)
             self.rsm.db.Put(bytearray(e.key, 'utf-8'), bytearray(e.value, 'utf-8'))
+        
+        self.rsm.zk.set("/cluster/"+self.rsm.port, value=bytes(str(len(self.rsm.log)), encoding='utf8'))
 
         return rsm_pb2.AppendEntriesResponse(success=True, index=len(self.rsm.log))
 
@@ -70,7 +71,7 @@ class LeaderElection:
             # wait until another node comes up
             time.sleep(0.1)
         
-        if peerNumProcessedEntries <= self.rsm.myNumProcessedEntries:
+        if peerNumProcessedEntries <= len(self.rsm.log):
             # Try to become a leader
             try:
                 self.rsm.zk.create("/election/leader", value=bytes(self.myID, encoding='utf8'), ephemeral=True)
@@ -106,13 +107,12 @@ class ReplicatedStateMachine:
         self.isFollower = True
         self.electionModule = LeaderElection(port, self)
         self.port = port
-        self.zk.ensure_path("/cluster")
-        # TODO remove
-        self.myNumProcessedEntries = random.randint(1,10)
-        self.zk.create("/cluster/"+self.port, value=bytes(str(self.myNumProcessedEntries), encoding='utf8'), ephemeral=True)
-        signal.signal(signal.SIGINT, self.signal_handler)
         self.log = []       # log of ReplicatedLogEntries
         self.peers = peers
+
+        self.zk.ensure_path("/cluster")
+        self.zk.create("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'), ephemeral=True)
+        signal.signal(signal.SIGINT, self.signal_handler)
 
         #set up levelDB
         self.setupDB(id)
@@ -165,6 +165,7 @@ class ReplicatedStateMachine:
             return False
 
         # broadcast to followers
+        # TODO move to queue model
         for follower in self.peers:
             with grpc.insecure_channel(follower) as channel:
                 stub = rsm_pb2_grpc.RSMStub(channel)
@@ -179,6 +180,7 @@ class ReplicatedStateMachine:
         # commit to log after ack from follower
         self.log.append(rsm_pb2.LogEntry(command="PUT", key=key, value=value))
         self.db.Put(bytearray(key, 'utf-8'), bytearray(value, 'utf-8'))
+        self.zk.set("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'))
 
         # respond sucess
         return True
