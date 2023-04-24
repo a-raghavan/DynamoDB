@@ -30,7 +30,7 @@ class Follower(rsm_pb2_grpc.RSMServicer):
     def __grpcServerThread(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
         rsm_pb2_grpc.add_RSMServicer_to_server(self, self.server)
-        self.server.add_insecure_port('[::]:' + self.port)
+        self.server.add_insecure_port('[::]:' + self.rsm.port)
         self.server.start()
         self.server.wait_for_termination()
     
@@ -39,12 +39,14 @@ class Follower(rsm_pb2_grpc.RSMServicer):
 
     def AppendEntries(self, request, context):
         if len(self.rsm.log) != request.index:
-            return rsm_pb2.AppendEntriesResponse(False, len(self.rsm.log))
+            return rsm_pb2.AppendEntriesResponse(success=False, index=len(self.rsm.log))
         for e in request.entries:
+            # TODO persist replicated log
+            # TODO update zk cluster file
             self.rsm.log.append(e)
-            self.db.Put(bytearray(e.key, 'utf-8'), bytearray(e.value, 'utf-8'))
+            self.rsm.db.Put(bytearray(e.key, 'utf-8'), bytearray(e.value, 'utf-8'))
 
-        return rsm_pb2.AppendEntriesResponse(True, len(self.rsm.log))
+        return rsm_pb2.AppendEntriesResponse(success=True, index=len(self.rsm.log))
 
 class LeaderElection:
     def __init__(self, id, rsm) -> None:
@@ -71,7 +73,7 @@ class LeaderElection:
         if peerNumProcessedEntries <= self.rsm.myNumProcessedEntries:
             # Try to become a leader
             try:
-                self.rsm.zk.create("/election/leader", value=bytes(sys.argv[1], encoding='utf8'), ephemeral=True)
+                self.rsm.zk.create("/election/leader", value=bytes(self.myID, encoding='utf8'), ephemeral=True)
                 self.currLeader = self.myID
             except zke.NodeExistsError:
                 # leader already exists
@@ -98,14 +100,16 @@ class ReplicatedStateMachine:
         rmtree(path, ignore_errors=True)
         self.db = leveldb.LevelDB(path)
 
-    def __init__(self, id, peers):
+    def __init__(self, port, peers):
         self.zk = KazooClient(hosts='127.0.0.1:2181')
         self.zk.start()
         self.isFollower = True
-        self.electionModule = LeaderElection(id, self)
+        self.electionModule = LeaderElection(port, self)
+        self.port = port
         self.zk.ensure_path("/cluster")
+        # TODO remove
         self.myNumProcessedEntries = random.randint(1,10)
-        self.zk.create("/cluster/"+id, value=bytes(str(self.myNumProcessedEntries), encoding='utf8'), ephemeral=True)
+        self.zk.create("/cluster/"+self.port, value=bytes(str(self.myNumProcessedEntries), encoding='utf8'), ephemeral=True)
         signal.signal(signal.SIGINT, self.signal_handler)
         self.log = []       # log of ReplicatedLogEntries
         self.peers = peers
@@ -129,14 +133,20 @@ class ReplicatedStateMachine:
             self.electionModule.contest()
             if self.electionModule.leader():
                 self.isFollower = False
-                # self.leader_function()
+                self.leader_function()
+                # TODO: wait for requests
             else:
                 self.isFollower = True
                 self.follower_function()
 
     def leader_function(self):
-        print("I'm the king of the world ", sys.argv[1])
-        signal.pause()
+        print("I'm the king of the world ")
+        # testing
+        time.sleep(10)
+
+        print(self.put("akshay", "awesome"))
+        print(self.get("akshay"))
+        
     
     def signal_handler(self, sig, frame):
         print('You pressed Ctrl+C!')
@@ -144,7 +154,7 @@ class ReplicatedStateMachine:
         sys.exit(0)
     
     def follower_function(self):
-        print("I hate following others ", sys.argv[1])
+        print("I hate following others ")
         follower = Follower(self)
         while self.isFollower:
             time.sleep(1)
@@ -158,16 +168,16 @@ class ReplicatedStateMachine:
         for follower in self.peers:
             with grpc.insecure_channel(follower) as channel:
                 stub = rsm_pb2_grpc.RSMStub(channel)
-                response = rsm_pb2.AppendEntriesResponse(False, 0)
+                response = rsm_pb2.AppendEntriesResponse(success=False, index=0)
                 idx = len(self.log)
                 while response.success == False:
                     entries = self.log[idx:]
                     entries.append(rsm_pb2.LogEntry(command="PUT", key=key, value=value))
-                    response = stub.AppendEntries(rsm_pb2.AppendEntriesRequest(idx, entries))
+                    response = stub.AppendEntries(rsm_pb2.AppendEntriesRequest(index=idx, entries=entries))
                     idx = response.index
 
         # commit to log after ack from follower
-        self.log.append(rsm_pb2.LogEntry("PUT", key, value))
+        self.log.append(rsm_pb2.LogEntry(command="PUT", key=key, value=value))
         self.db.Put(bytearray(key, 'utf-8'), bytearray(value, 'utf-8'))
 
         # respond sucess
@@ -191,5 +201,3 @@ if __name__ == "__main__":
 
     rsm = ReplicatedStateMachine(args.port, othernodes(args.nodes, args.port))     # port will act as unique ID
     rsm.run()
-    rsm.put("akshay", "awesome")
-    rsm.get("akshay")

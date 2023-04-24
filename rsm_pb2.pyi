@@ -6,20 +6,20 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class AppendEntriesRequest(_message.Message):
-    __slots__ = ["entries", "prevlogindex"]
+    __slots__ = ["entries", "index"]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
-    PREVLOGINDEX_FIELD_NUMBER: _ClassVar[int]
+    INDEX_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[LogEntry]
-    prevlogindex: int
-    def __init__(self, prevlogindex: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ...) -> None: ...
+    index: int
+    def __init__(self, index: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ...) -> None: ...
 
 class AppendEntriesResponse(_message.Message):
-    __slots__ = ["nextIndex", "success"]
-    NEXTINDEX_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["index", "success"]
+    INDEX_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
-    nextIndex: int
+    index: int
     success: bool
-    def __init__(self, success: bool = ..., nextIndex: _Optional[int] = ...) -> None: ...
+    def __init__(self, success: bool = ..., index: _Optional[int] = ...) -> None: ...
 
 class LogEntry(_message.Message):
     __slots__ = ["command", "key", "value"]
