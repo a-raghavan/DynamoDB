@@ -1,5 +1,5 @@
 from kazoo.client import KazooClient
-from kazoo.exceptions import NodeExistsError
+import kazoo.exceptions as zke
 from kazoo.protocol.states import EventType
 import signal
 import sys
@@ -14,10 +14,31 @@ class LeaderElection:
     
     def contest(self) -> None:
         self.rsm.zk.ensure_path("/election")
-        try:
-            self.rsm.zk.create("/election/leader", value=bytes(sys.argv[1], encoding='utf8'), ephemeral=True)
-            self.currLeader = self.myID
-        except NodeExistsError:
+
+        peerNumProcessedEntries = -1
+        while peerNumProcessedEntries == -1:
+            # can't proceed since we have only 1 active node (that is us)
+            children = self.rsm.zk.get_children("/cluster")
+            for c in children:
+                if c != self.myID:
+                    data = self.rsm.zk.get("/cluster/"+c)
+                    peerNumProcessedEntries = max(int(data[0].decode()), peerNumProcessedEntries)
+            # wait until another node comes up
+            time.sleep(1)
+        
+        if peerNumProcessedEntries <= self.rsm.myNumProcessedEntries:
+            # Try to become a leader
+            try:
+                self.rsm.zk.create("/election/leader", value=bytes(sys.argv[1], encoding='utf8'), ephemeral=True)
+                self.currLeader = self.myID
+            except zke.NodeExistsError:
+                # leader already exists
+                data = self.rsm.zk.get("/election/leader", watch=self.rsm.watchLeaderFile)
+                self.currLeader = data[0].decode()
+        else:
+            # allow peer to become the leader
+            while not self.rsm.zk.exists("/election/leader"):
+                time.sleep(1)
             data = self.rsm.zk.get("/election/leader", watch=self.rsm.watchLeaderFile)
             self.currLeader = data[0].decode()
     
@@ -30,6 +51,9 @@ class ReplicatedStateMachine:
         self.zk.start()
         self.isFollower = True
         self.electionModule = LeaderElection(id, self)
+        self.zk.ensure_path("/cluster")
+        self.myNumProcessedEntries = random.randint(1,10)
+        self.zk.create("/cluster/"+id, value=bytes(str(self.myNumProcessedEntries), encoding='utf8'), ephemeral=True)
         signal.signal(signal.SIGINT, self.signal_handler)
     
     def __del__(self):
