@@ -16,6 +16,7 @@ class LeaderElection:
         self.rsm.zk.ensure_path("/election")
 
         peerNumProcessedEntries = -1
+        peerid = ""
         while peerNumProcessedEntries == -1:
             # can't proceed since we have only 1 active node (that is us)
             children = self.rsm.zk.get_children("/cluster")
@@ -23,7 +24,9 @@ class LeaderElection:
                 if c != self.myID:
                     data = self.rsm.zk.get("/cluster/"+c)
                     peerNumProcessedEntries = max(int(data[0].decode()), peerNumProcessedEntries)
+                    peerid = c
             # wait until another node comes up
+            # TODO: tune value to a lesser value to get better election performance
             time.sleep(1)
         
         if peerNumProcessedEntries <= self.rsm.myNumProcessedEntries:
@@ -37,10 +40,12 @@ class LeaderElection:
                 self.currLeader = data[0].decode()
         else:
             # allow peer to become the leader
-            while not self.rsm.zk.exists("/election/leader"):
-                time.sleep(1)
-            data = self.rsm.zk.get("/election/leader", watch=self.rsm.watchLeaderFile)
-            self.currLeader = data[0].decode()
+            # while not self.rsm.zk.exists("/election/leader"):
+            #     time.sleep(1)
+            # data = self.rsm.zk.get("/election/leader", watch=self.rsm.watchLeaderFile)
+            # self.currLeader = data[0].decode()
+            self.rsm.zk.exists("/election/leader", watch=self.rsm.watchLeaderFile)
+            self.currLeader = peerid
     
     def leader(self) -> bool:
         return self.myID == self.currLeader
@@ -62,7 +67,10 @@ class ReplicatedStateMachine:
     def watchLeaderFile(self, event):
         if event.type == EventType.DELETED:
             self.isFollower = False
-        
+        elif event.type == EventType.CREATED:
+            data = self.rsm.zk.get("/election/leader")
+            self.electionModule.currLeader = data[0].decode()
+
     def run(self):
         while True:
             self.electionModule.contest()
