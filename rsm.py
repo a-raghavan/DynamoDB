@@ -9,6 +9,8 @@ import leveldb
 import grpc
 import rsm_pb2
 import rsm_pb2_grpc
+import database_pb2
+import database_pb2_grpc
 from concurrent import futures
 import threading
 
@@ -20,6 +22,25 @@ def othernodes(nodes, port):
     myaddresses = [mynodeport, "localhost:"+port, "127.0.0.1:"+port]
     ret = [nodeport for nodeport in nodes if nodeport not in myaddresses]
     return ret
+
+class Leader(database_pb2_grpc.DatabaseServicer):
+    def __init__(self, rsm):
+        self.rsm = rsm
+    
+    def Get(self, request, context):
+        return database_pb2.GetResponse(value=self.rsm.get(request.key))
+    
+    def Put(self, request, context):
+        self.rsm.put(request.key, request.value)
+        return database_pb2.PutResponse(errormsg="")
+
+    def serve(self):
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        database_pb2_grpc.add_DatabaseServicer_to_server(self, server)
+        server.add_insecure_port('[::]:' + "50051")
+        server.start()
+        print("Server started, listening on " + "50051")
+        server.wait_for_termination()
 
 class Follower(rsm_pb2_grpc.RSMServicer):
     def __init__(self, rsm):
@@ -141,12 +162,8 @@ class ReplicatedStateMachine:
 
     def leader_function(self):
         print("I'm the king of the world ")
-        # testing
-        time.sleep(10)
-
-        print(self.put("akshay", "awesome"))
-        print(self.get("akshay"))
-        
+        leader = Leader(self)
+        leader.serve()
     
     def signal_handler(self, sig, frame):
         print('You pressed Ctrl+C!')
