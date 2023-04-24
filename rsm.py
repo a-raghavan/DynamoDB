@@ -1,18 +1,20 @@
 from kazoo.client import KazooClient
 import kazoo.exceptions as zke
 from kazoo.protocol.states import EventType
+
 import signal
 import sys
 import time
 import random
 import leveldb
+from concurrent import futures
+import threading
+
 import grpc
 import rsm_pb2
 import rsm_pb2_grpc
 import database_pb2
 import database_pb2_grpc
-from concurrent import futures
-import threading
 
 def othernodes(nodes, port):
     import socket
@@ -62,9 +64,9 @@ class Follower(rsm_pb2_grpc.RSMServicer):
         if len(self.rsm.log) != request.index:
             return rsm_pb2.AppendEntriesResponse(success=False, index=len(self.rsm.log))
         for e in request.entries:
-            # TODO persist replicated log
             self.rsm.log.append(e)
             self.rsm.db.Put(bytearray(e.key, 'utf-8'), bytearray(e.value, 'utf-8'))
+            self.rsm.persistLog(e)
         
         self.rsm.zk.set("/cluster/"+self.rsm.port, value=bytes(str(len(self.rsm.log)), encoding='utf8'))
 
@@ -86,6 +88,7 @@ class LeaderElection:
             children = self.rsm.zk.get_children("/cluster")
             for c in children:
                 if c != self.myID:
+                    # TODO maybe get log index from peer instead of ZK. ZK might become a bottleneck
                     data = self.rsm.zk.get("/cluster/"+c)
                     peerNumProcessedEntries = max(int(data[0].decode()), peerNumProcessedEntries)
                     peerid = c
@@ -109,19 +112,31 @@ class LeaderElection:
     def leader(self) -> bool:
         return self.myID == self.currLeader
 
-class ReplicatedLogEntry:
-    def __init__(self, key, value) -> None:
-        self.operation = "PUT"
-        self.key = key
-        self.value = value
-
 class ReplicatedStateMachine:
     def setupDB(self, id):
-        path ='./{}_db'.format(id)
+        dbpath = './{}_db'.format(id)
         from shutil import rmtree
-        rmtree(path, ignore_errors=True)
-        self.db = leveldb.LevelDB(path)
+        rmtree(dbpath, ignore_errors=True)
+        self.db = leveldb.LevelDB(dbpath)
 
+    def persistLog(self, entry):
+        logpath = './{}_log'.format(self.port)
+        with open(logpath, 'a') as file:
+            file.write(entry.command + " " + entry.key + " " + entry.value+"\n")
+    
+    def retreivePersistedLog(self):
+        logpath = './{}_log'.format(self.port)
+        try:
+            with open(logpath, 'r') as file:
+                entries = file.readlines()
+                for e in entries:
+                    elst = e.split(" ")
+                    self.log.append(rsm_pb2.LogEntry(command=elst[0], key=elst[1], value=elst[1]))
+            # print("Log retreived - ", len(self.log))
+        except OSError:
+            # ignore if file not found
+            return
+        
     def __init__(self, port, peers):
         self.zk = KazooClient(hosts='127.0.0.1:2181')
         self.zk.start()
@@ -131,12 +146,18 @@ class ReplicatedStateMachine:
         self.log = []       # log of ReplicatedLogEntries
         self.peers = peers
 
-        self.zk.ensure_path("/cluster")
-        self.zk.create("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'), ephemeral=True)
-        signal.signal(signal.SIGINT, self.signal_handler)
+        self.retreivePersistedLog()
 
         #set up levelDB
-        self.setupDB(id)
+        self.setupDB(port)
+
+        self.zk.ensure_path("/cluster")
+        if self.zk.exists("/cluster/"+self.port):
+            self.zk.set("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'))
+        else:
+            self.zk.create("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'), ephemeral=True)
+        
+        signal.signal(signal.SIGINT, self.signal_handler)
 
     
     def __del__(self):
@@ -155,7 +176,6 @@ class ReplicatedStateMachine:
             if self.electionModule.leader():
                 self.isFollower = False
                 self.leader_function()
-                # TODO: wait for requests
             else:
                 self.isFollower = True
                 self.follower_function()
@@ -180,6 +200,8 @@ class ReplicatedStateMachine:
     def put(self, key, value):
         if self.isFollower:
             return False
+        
+        currentry = rsm_pb2.LogEntry(command="PUT", key=key, value=value)
 
         # broadcast to followers
         # TODO move to queue model
@@ -190,12 +212,13 @@ class ReplicatedStateMachine:
                 idx = len(self.log)
                 while response.success == False:
                     entries = self.log[idx:]
-                    entries.append(rsm_pb2.LogEntry(command="PUT", key=key, value=value))
+                    entries.append(currentry)
                     response = stub.AppendEntries(rsm_pb2.AppendEntriesRequest(index=idx, entries=entries))
                     idx = response.index
 
         # commit to log after ack from follower
-        self.log.append(rsm_pb2.LogEntry(command="PUT", key=key, value=value))
+        self.log.append(currentry)
+        self.persistLog(currentry)
         self.db.Put(bytearray(key, 'utf-8'), bytearray(value, 'utf-8'))
         self.zk.set("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'))
 
