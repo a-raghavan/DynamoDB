@@ -26,8 +26,7 @@ class LeaderElection:
                     peerNumProcessedEntries = max(int(data[0].decode()), peerNumProcessedEntries)
                     peerid = c
             # wait until another node comes up
-            # TODO: tune value to a lesser value to get better election performance
-            time.sleep(1)
+            time.sleep(0.2)
         
         if peerNumProcessedEntries <= self.rsm.myNumProcessedEntries:
             # Try to become a leader
@@ -40,10 +39,6 @@ class LeaderElection:
                 self.currLeader = data[0].decode()
         else:
             # allow peer to become the leader
-            # while not self.rsm.zk.exists("/election/leader"):
-            #     time.sleep(1)
-            # data = self.rsm.zk.get("/election/leader", watch=self.rsm.watchLeaderFile)
-            # self.currLeader = data[0].decode()
             self.rsm.zk.exists("/election/leader", watch=self.rsm.watchLeaderFile)
             self.currLeader = peerid
     
@@ -68,7 +63,7 @@ class ReplicatedStateMachine:
         if event.type == EventType.DELETED:
             self.isFollower = False
         elif event.type == EventType.CREATED:
-            data = self.rsm.zk.get("/election/leader")
+            data = self.zk.get("/election/leader")
             self.electionModule.currLeader = data[0].decode()
 
     def run(self):
@@ -98,10 +93,5 @@ class ReplicatedStateMachine:
 if __name__ == "__main__":
 
     rsm = ReplicatedStateMachine(sys.argv[1])
-
-    time.sleep(random.random()+1) 
-
     rsm.run()
-    
-    time.sleep(3)
 
