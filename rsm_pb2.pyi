@@ -21,6 +21,16 @@ class AppendEntriesResponse(_message.Message):
     success: bool
     def __init__(self, success: bool = ..., index: _Optional[int] = ...) -> None: ...
 
+class GetCommitIndexRequest(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
+
+class GetCommitIndexResponse(_message.Message):
+    __slots__ = ["commitindex"]
+    COMMITINDEX_FIELD_NUMBER: _ClassVar[int]
+    commitindex: int
+    def __init__(self, commitindex: _Optional[int] = ...) -> None: ...
+
 class LogEntry(_message.Message):
     __slots__ = ["command", "key", "value"]
     COMMAND_FIELD_NUMBER: _ClassVar[int]

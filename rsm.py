@@ -68,10 +68,11 @@ class Follower(rsm_pb2_grpc.RSMServicer):
             self.rsm.log.append(e)
             self.rsm.db.Put(bytearray(e.key, 'utf-8'), bytearray(e.value, 'utf-8'))
             self.rsm.persistLog(e)
-        
-        self.rsm.zk.set("/cluster/"+self.rsm.port, value=bytes(str(len(self.rsm.log)), encoding='utf8'))
 
         return rsm_pb2.AppendEntriesResponse(success=True, index=len(self.rsm.log))
+
+    def GetCommitIndex(self, request, context):
+        return rsm_pb2.GetCommitIndexResponse(commitindex=len(self.rsm.log))
 
 class LeaderElection:
     def __init__(self, id, rsm) -> None:
@@ -89,10 +90,15 @@ class LeaderElection:
             children = self.rsm.zk.get_children("/cluster")
             for c in children:
                 if c != self.myID:
-                    # TODO maybe get log index from peer instead of ZK. ZK might become a bottleneck
-                    data = self.rsm.zk.get("/cluster/"+c)
-                    peerNumProcessedEntries = max(int(data[0].decode()), peerNumProcessedEntries)
-                    peerid = c
+                    try:
+                        with grpc.insecure_channel(self.rsm.getpeer(c)) as channel:
+                            stub = rsm_pb2_grpc.RSMStub(channel)
+                            response = stub.GetCommitIndex(rsm_pb2.GetCommitIndexRequest())
+                            peerNumProcessedEntries = max(response.commitindex, peerNumProcessedEntries)
+                            peerid = c
+                    except Exception as e:
+                        # other follower died too! wait until f+1 nodes back up
+                        break
             # wait until another node comes up
             time.sleep(0.1)
         
@@ -114,6 +120,12 @@ class LeaderElection:
         return self.myID == self.currLeader
 
 class ReplicatedStateMachine:
+    def getpeer(self, port):
+        for np in self.peers:
+            if port == np.split(':')[1]:
+                return np
+        return ""
+
     def setupDB(self, id):
         dbpath = './{}_db'.format(id)
         from shutil import rmtree
@@ -135,7 +147,6 @@ class ReplicatedStateMachine:
                         continue
                     elst = e.split(" ")
                     self.log.append(rsm_pb2.LogEntry(command=elst[0], key=elst[1], value=elst[1]))
-            # print("Log retreived - ", len(self.log))
         except OSError:
             # ignore if file not found
             return
@@ -155,10 +166,7 @@ class ReplicatedStateMachine:
         self.setupDB(port)
 
         self.zk.ensure_path("/cluster")
-        if self.zk.exists("/cluster/"+self.port):
-            self.zk.set("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'))
-        else:
-            self.zk.create("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'), ephemeral=True)
+        self.zk.create("/cluster/"+self.port, ephemeral=True)
         
         self.replicateFollower1 = futures.ThreadPoolExecutor(max_workers=1)
         self.replicateFollower2 = futures.ThreadPoolExecutor(max_workers=1)
@@ -178,7 +186,10 @@ class ReplicatedStateMachine:
 
     def run(self):
         while True:
+            follower = Follower(self)
             self.electionModule.contest()
+            del follower
+
             if self.electionModule.leader():
                 self.isFollower = False
                 self.leader_function()
@@ -212,13 +223,12 @@ class ReplicatedStateMachine:
             while response.success == False:
                 
                 try:
-                    response = stub.AppendEntries(rsm_pb2.AppendEntriesRequest(index=reqidx, entries=entries), timeout=5)
+                    response = stub.AppendEntries(rsm_pb2.AppendEntriesRequest(index=reqidx, entries=entries), timeout=0.5)
                 except Exception as e:
-                    time.sleep(5)
-                    print(e)
+                    time.sleep(0.5)
                     # timeout
                     continue
-                print("AppendEntries - ", response.index, response.success)
+
                 # client caught up
                 if response.success:
                     return
@@ -228,7 +238,6 @@ class ReplicatedStateMachine:
                 
                 if idx == len(self.log):
                     entries.append(currentry)
-                print("AppendEntries new entries - ", entries)
 
     def put(self, key, value):
         if self.isFollower:
@@ -249,7 +258,6 @@ class ReplicatedStateMachine:
         self.log.append(currentry)
         self.persistLog(currentry)
         self.db.Put(bytearray(key, 'utf-8'), bytearray(value, 'utf-8'))
-        self.zk.set("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'))
 
         # respond sucess
         return True

@@ -9,6 +9,7 @@ package rsm;
 
 service RSM {
   rpc AppendEntries (AppendEntriesRequest) returns (AppendEntriesResponse) {}
+  rpc GetCommitIndex (GetCommitIndexRequest) returns (GetCommitIndexResponse) {}
 }
 
 message LogEntry {
@@ -25,4 +26,12 @@ message AppendEntriesRequest {
 message AppendEntriesResponse {
   bool success = 1;
   int64 index = 2;
+}
+
+message GetCommitIndexRequest {
+  
+}
+
+message GetCommitIndexResponse {
+  int64 commitindex = 1;
 }

@@ -19,12 +19,23 @@ class RSMStub(object):
                 request_serializer=rsm__pb2.AppendEntriesRequest.SerializeToString,
                 response_deserializer=rsm__pb2.AppendEntriesResponse.FromString,
                 )
+        self.GetCommitIndex = channel.unary_unary(
+                '/rsm.RSM/GetCommitIndex',
+                request_serializer=rsm__pb2.GetCommitIndexRequest.SerializeToString,
+                response_deserializer=rsm__pb2.GetCommitIndexResponse.FromString,
+                )
 
 
 class RSMServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def AppendEntries(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetCommitIndex(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -37,6 +48,11 @@ def add_RSMServicer_to_server(servicer, server):
                     servicer.AppendEntries,
                     request_deserializer=rsm__pb2.AppendEntriesRequest.FromString,
                     response_serializer=rsm__pb2.AppendEntriesResponse.SerializeToString,
+            ),
+            'GetCommitIndex': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetCommitIndex,
+                    request_deserializer=rsm__pb2.GetCommitIndexRequest.FromString,
+                    response_serializer=rsm__pb2.GetCommitIndexResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -62,5 +78,22 @@ class RSM(object):
         return grpc.experimental.unary_unary(request, target, '/rsm.RSM/AppendEntries',
             rsm__pb2.AppendEntriesRequest.SerializeToString,
             rsm__pb2.AppendEntriesResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetCommitIndex(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/rsm.RSM/GetCommitIndex',
+            rsm__pb2.GetCommitIndexRequest.SerializeToString,
+            rsm__pb2.GetCommitIndexResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
