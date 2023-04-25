@@ -27,7 +27,7 @@ def othernodes(nodes, port):
 
 class Leader(database_pb2_grpc.DatabaseServicer):
     def __init__(self, rsm):
-        self.rsm = rsm
+        self.rsm = rsm 
     
     def Get(self, request, context):
         return database_pb2.GetResponse(value=self.rsm.get(request.key))
@@ -37,7 +37,7 @@ class Leader(database_pb2_grpc.DatabaseServicer):
         return database_pb2.PutResponse(errormsg="")
 
     def serve(self):
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
         database_pb2_grpc.add_DatabaseServicer_to_server(self, server)
         server.add_insecure_port('[::]:' + "50051")
         server.start()
@@ -63,6 +63,7 @@ class Follower(rsm_pb2_grpc.RSMServicer):
     def AppendEntries(self, request, context):
         if len(self.rsm.log) != request.index:
             return rsm_pb2.AppendEntriesResponse(success=False, index=len(self.rsm.log))
+        print("AppendEntries - ", request.index, request.entries)
         for e in request.entries:
             self.rsm.log.append(e)
             self.rsm.db.Put(bytearray(e.key, 'utf-8'), bytearray(e.value, 'utf-8'))
@@ -130,6 +131,8 @@ class ReplicatedStateMachine:
             with open(logpath, 'r') as file:
                 entries = file.readlines()
                 for e in entries:
+                    if e == "":
+                        continue
                     elst = e.split(" ")
                     self.log.append(rsm_pb2.LogEntry(command=elst[0], key=elst[1], value=elst[1]))
             # print("Log retreived - ", len(self.log))
@@ -156,6 +159,9 @@ class ReplicatedStateMachine:
             self.zk.set("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'))
         else:
             self.zk.create("/cluster/"+self.port, value=bytes(str(len(self.log)), encoding='utf8'), ephemeral=True)
+        
+        self.replicateFollower1 = futures.ThreadPoolExecutor(max_workers=1)
+        self.replicateFollower2 = futures.ThreadPoolExecutor(max_workers=1)
         
         signal.signal(signal.SIGINT, self.signal_handler)
 
@@ -197,24 +203,47 @@ class ReplicatedStateMachine:
             time.sleep(1)
         del follower
     
+    def __appendEntries(self, follower, currentry, idx):
+        with grpc.insecure_channel(follower) as channel:
+            stub = rsm_pb2_grpc.RSMStub(channel)
+            response = rsm_pb2.AppendEntriesResponse(success=False, index=0)
+            entries = [currentry]
+            reqidx = idx
+            while response.success == False:
+                
+                try:
+                    response = stub.AppendEntries(rsm_pb2.AppendEntriesRequest(index=reqidx, entries=entries), timeout=5)
+                except Exception as e:
+                    time.sleep(5)
+                    print(e)
+                    # timeout
+                    continue
+                print("AppendEntries - ", response.index, response.success)
+                # client caught up
+                if response.success:
+                    return
+
+                reqidx = response.index
+                entries = self.log[reqidx:]
+                
+                if idx == len(self.log):
+                    entries.append(currentry)
+                print("AppendEntries new entries - ", entries)
+
     def put(self, key, value):
         if self.isFollower:
             return False
         
         currentry = rsm_pb2.LogEntry(command="PUT", key=key, value=value)
+        idx = len(self.log)
 
-        # broadcast to followers
-        # TODO move to queue model
-        for follower in self.peers:
-            with grpc.insecure_channel(follower) as channel:
-                stub = rsm_pb2_grpc.RSMStub(channel)
-                response = rsm_pb2.AppendEntriesResponse(success=False, index=0)
-                idx = len(self.log)
-                while response.success == False:
-                    entries = self.log[idx:]
-                    entries.append(currentry)
-                    response = stub.AppendEntries(rsm_pb2.AppendEntriesRequest(index=idx, entries=entries))
-                    idx = response.index
+        f1 = self.replicateFollower1.submit(self.__appendEntries, follower=self.peers[0], currentry=currentry, idx=idx)
+        f2 = self.replicateFollower2.submit(self.__appendEntries, follower=self.peers[1], currentry=currentry, idx=idx)
+
+        while True:
+            if f1.done() or f2.done():
+                break
+            time.sleep(0.1)
 
         # commit to log after ack from follower
         self.log.append(currentry)
