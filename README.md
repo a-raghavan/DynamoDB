@@ -29,6 +29,7 @@ bin/zkCli.sh -server 127.0.0.1:2181
 
 # Running rsm.py
 **Start rsm.py only after zookeeper is running**
+
 Leader default port : 50051
 ```sh
 python3 rsm.py -p 5000 -n localhost:5000 localhost:5001 localhost:5002
@@ -42,6 +43,6 @@ python3 physicalnode.py
 ```
 
 # Documentations:
-https://kazoo.readthedocs.io/en/latest/basic_usage.html
-https://zookeeper.apache.org/doc/current/zookeeperStarted.html
-https://zookeeper.apache.org/releases.html
+- https://kazoo.readthedocs.io/en/latest/basic_usage.html
+- https://zookeeper.apache.org/doc/current/zookeeperStarted.html
+- https://zookeeper.apache.org/releases.html
