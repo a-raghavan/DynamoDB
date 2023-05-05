@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.ae";
+option java_outer_classname = "AEProto";
+option objc_class_prefix = "HLW";
+
+package ae;
+
+service AntiEntropy {
+  rpc Sync (SyncRequest) returns (SyncResponse) {}
+}
+
+message BucketEntry {
+    string key = 1;
+    string value = 2;
+}
+
+message SyncRequest {
+  string hash = 1;
+  string path = 2;
+  repeated BucketEntry bucket = 3; 
+}
+
+message SyncResponse {
+  bool same = 1;
+  repeated BucketEntry bucket = 2; 
+}
