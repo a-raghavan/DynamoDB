@@ -5,36 +5,25 @@ option java_package = "io.grpc.examples.leveldb";
 option java_outer_classname = "LevelDBProto";
 option objc_class_prefix = "HLW";
 
-package database;
+package consistentHashing;
 
-service Database {
+service ConsistentHashing {
   rpc Get (GetRequest) returns (GetResponse) {}
   rpc Put (PutRequest) returns (PutResponse) {}
-  rpc IsMemoryUsageHigh (EmptyParams) returns (MemoryUsageResponse) {}
-  rpc KeysToMove (KeysToMoveRequest) returns (KeysToMoveResponse) {}
-}
-
-message KeysToMoveRequest{
-  string startKey = 1;
-  string endKey = 2;
+  rpc AddNode (AddNodeRequest) returns (AddNodeResponse) {}
+  rpc RemoveNode (PutRequest) returns (PutResponse) {}
 
 }
 
-message KVpair{
-  string key = 1;
-  string value = 2;
+
+message AddNodeRequest {
+  string ip = 1;
 }
 
-message KeysToMoveResponse{
-  repeated KVpair entries = 1;
+message AddNodeResponse {
+  string errormsg = 1;
 }
 
-message EmptyParams {
-}
-
-message MemoryUsageResponse{
-  bool isHigh = 1;
-}
 
 message GetRequest {
   string key = 1;

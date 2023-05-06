@@ -9,6 +9,7 @@ import random
 import leveldb
 from concurrent import futures
 import threading
+from leveldb.stats import stats_to_dict
 
 import grpc
 import rsm_pb2
@@ -46,6 +47,24 @@ class Leader(database_pb2_grpc.DatabaseServicer):
     def Put(self, request, context):
         self.rsm.put(request.key, request.value)
         return database_pb2.PutResponse(errormsg="")
+    
+    def KeysToMove(self, request, context):
+        start_key = request.startKey.encode() #need to verify
+        end_key = request.endKey.encode() #need to verify
+        keys = []
+        for key, value in self.rsm.db.RangeIter(start=start_key, end= end_key):
+            keys.append(database_pb2.KVpair(key= key.decode(), value = value.decode()))
+        return database_pb2.KeysToMoveResponse(entries=keys)
+    
+    def IsMemoryUsageHigh(self, request, context):
+        stats = self.rsm.db.GetProperty(b'statistics')
+        stats_dict = stats_to_dict(stats)
+        memory_usage_bytes = stats_dict['leveldb.cur-size-active-mem-table'] + \
+               stats_dict['leveldb.cur-size-all-mem-tables'] + \
+               stats_dict['leveldb.estimate-table-readers-mem']
+        if(memory_usage_bytes / (1024 * 1024) > 4):
+            return database_pb2.MemoryUsageResponse(isHigh=True)
+        return database_pb2.MemoryUsageResponse(isHigh=False)
 
     def serve(self):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))

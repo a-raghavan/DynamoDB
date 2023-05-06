@@ -2,10 +2,10 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import database_pb2 as database__pb2
+import consistentHashing_pb2 as consistentHashing__pb2
 
 
-class DatabaseStub(object):
+class ConsistentHashingStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -15,28 +15,28 @@ class DatabaseStub(object):
             channel: A grpc.Channel.
         """
         self.Get = channel.unary_unary(
-                '/database.Database/Get',
-                request_serializer=database__pb2.GetRequest.SerializeToString,
-                response_deserializer=database__pb2.GetResponse.FromString,
+                '/consistentHashing.ConsistentHashing/Get',
+                request_serializer=consistentHashing__pb2.GetRequest.SerializeToString,
+                response_deserializer=consistentHashing__pb2.GetResponse.FromString,
                 )
         self.Put = channel.unary_unary(
-                '/database.Database/Put',
-                request_serializer=database__pb2.PutRequest.SerializeToString,
-                response_deserializer=database__pb2.PutResponse.FromString,
+                '/consistentHashing.ConsistentHashing/Put',
+                request_serializer=consistentHashing__pb2.PutRequest.SerializeToString,
+                response_deserializer=consistentHashing__pb2.PutResponse.FromString,
                 )
-        self.IsMemoryUsageHigh = channel.unary_unary(
-                '/database.Database/IsMemoryUsageHigh',
-                request_serializer=database__pb2.EmptyParams.SerializeToString,
-                response_deserializer=database__pb2.MemoryUsageResponse.FromString,
+        self.AddNode = channel.unary_unary(
+                '/consistentHashing.ConsistentHashing/AddNode',
+                request_serializer=consistentHashing__pb2.AddNodeRequest.SerializeToString,
+                response_deserializer=consistentHashing__pb2.AddNodeResponse.FromString,
                 )
-        self.KeysToMove = channel.unary_unary(
-                '/database.Database/KeysToMove',
-                request_serializer=database__pb2.KeysToMoveRequest.SerializeToString,
-                response_deserializer=database__pb2.KeysToMoveResponse.FromString,
+        self.RemoveNode = channel.unary_unary(
+                '/consistentHashing.ConsistentHashing/RemoveNode',
+                request_serializer=consistentHashing__pb2.PutRequest.SerializeToString,
+                response_deserializer=consistentHashing__pb2.PutResponse.FromString,
                 )
 
 
-class DatabaseServicer(object):
+class ConsistentHashingServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Get(self, request, context):
@@ -51,49 +51,49 @@ class DatabaseServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def IsMemoryUsageHigh(self, request, context):
+    def AddNode(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def KeysToMove(self, request, context):
+    def RemoveNode(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_DatabaseServicer_to_server(servicer, server):
+def add_ConsistentHashingServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Get': grpc.unary_unary_rpc_method_handler(
                     servicer.Get,
-                    request_deserializer=database__pb2.GetRequest.FromString,
-                    response_serializer=database__pb2.GetResponse.SerializeToString,
+                    request_deserializer=consistentHashing__pb2.GetRequest.FromString,
+                    response_serializer=consistentHashing__pb2.GetResponse.SerializeToString,
             ),
             'Put': grpc.unary_unary_rpc_method_handler(
                     servicer.Put,
-                    request_deserializer=database__pb2.PutRequest.FromString,
-                    response_serializer=database__pb2.PutResponse.SerializeToString,
+                    request_deserializer=consistentHashing__pb2.PutRequest.FromString,
+                    response_serializer=consistentHashing__pb2.PutResponse.SerializeToString,
             ),
-            'IsMemoryUsageHigh': grpc.unary_unary_rpc_method_handler(
-                    servicer.IsMemoryUsageHigh,
-                    request_deserializer=database__pb2.EmptyParams.FromString,
-                    response_serializer=database__pb2.MemoryUsageResponse.SerializeToString,
+            'AddNode': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddNode,
+                    request_deserializer=consistentHashing__pb2.AddNodeRequest.FromString,
+                    response_serializer=consistentHashing__pb2.AddNodeResponse.SerializeToString,
             ),
-            'KeysToMove': grpc.unary_unary_rpc_method_handler(
-                    servicer.KeysToMove,
-                    request_deserializer=database__pb2.KeysToMoveRequest.FromString,
-                    response_serializer=database__pb2.KeysToMoveResponse.SerializeToString,
+            'RemoveNode': grpc.unary_unary_rpc_method_handler(
+                    servicer.RemoveNode,
+                    request_deserializer=consistentHashing__pb2.PutRequest.FromString,
+                    response_serializer=consistentHashing__pb2.PutResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'database.Database', rpc_method_handlers)
+            'consistentHashing.ConsistentHashing', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
  # This class is part of an EXPERIMENTAL API.
-class Database(object):
+class ConsistentHashing(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -107,9 +107,9 @@ class Database(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/database.Database/Get',
-            database__pb2.GetRequest.SerializeToString,
-            database__pb2.GetResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/consistentHashing.ConsistentHashing/Get',
+            consistentHashing__pb2.GetRequest.SerializeToString,
+            consistentHashing__pb2.GetResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -124,14 +124,14 @@ class Database(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/database.Database/Put',
-            database__pb2.PutRequest.SerializeToString,
-            database__pb2.PutResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/consistentHashing.ConsistentHashing/Put',
+            consistentHashing__pb2.PutRequest.SerializeToString,
+            consistentHashing__pb2.PutResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def IsMemoryUsageHigh(request,
+    def AddNode(request,
             target,
             options=(),
             channel_credentials=None,
@@ -141,14 +141,14 @@ class Database(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/database.Database/IsMemoryUsageHigh',
-            database__pb2.EmptyParams.SerializeToString,
-            database__pb2.MemoryUsageResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/consistentHashing.ConsistentHashing/AddNode',
+            consistentHashing__pb2.AddNodeRequest.SerializeToString,
+            consistentHashing__pb2.AddNodeResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def KeysToMove(request,
+    def RemoveNode(request,
             target,
             options=(),
             channel_credentials=None,
@@ -158,8 +158,8 @@ class Database(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/database.Database/KeysToMove',
-            database__pb2.KeysToMoveRequest.SerializeToString,
-            database__pb2.KeysToMoveResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/consistentHashing.ConsistentHashing/RemoveNode',
+            consistentHashing__pb2.PutRequest.SerializeToString,
+            consistentHashing__pb2.PutResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

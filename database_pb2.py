@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x64\x61tabase.proto\x12\x08\x64\x61tabase\"\x19\n\nGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\"\x1c\n\x0bGetResponse\x12\r\n\x05value\x18\x02 \x01(\t\"(\n\nPutRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\x1f\n\x0bPutResponse\x12\x10\n\x08\x65rrormsg\x18\x01 \x01(\t2v\n\x08\x44\x61tabase\x12\x34\n\x03Get\x12\x14.database.GetRequest\x1a\x15.database.GetResponse\"\x00\x12\x34\n\x03Put\x12\x14.database.PutRequest\x1a\x15.database.PutResponse\"\x00\x42\x30\n\x18io.grpc.examples.leveldbB\x0cLevelDBProtoP\x01\xa2\x02\x03HLWb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x64\x61tabase.proto\x12\x08\x64\x61tabase\" \n\x11KeysToMoveRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\"%\n\x12KeysToMoveResponse\x12\x0f\n\x07\x65ntries\x18\x01 \x03(\t\"\r\n\x0b\x45mptyParams\"%\n\x13MemoryUsageResponse\x12\x0e\n\x06isHigh\x18\x01 \x01(\x08\"\x19\n\nGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\"\x1c\n\x0bGetResponse\x12\r\n\x05value\x18\x02 \x01(\t\"(\n\nPutRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\x1f\n\x0bPutResponse\x12\x10\n\x08\x65rrormsg\x18\x01 \x01(\t2\x8e\x02\n\x08\x44\x61tabase\x12\x34\n\x03Get\x12\x14.database.GetRequest\x1a\x15.database.GetResponse\"\x00\x12\x34\n\x03Put\x12\x14.database.PutRequest\x1a\x15.database.PutResponse\"\x00\x12K\n\x11IsMemoryUsageHigh\x12\x15.database.EmptyParams\x1a\x1d.database.MemoryUsageResponse\"\x00\x12I\n\nKeysToMove\x12\x1b.database.KeysToMoveRequest\x1a\x1c.database.KeysToMoveResponse\"\x00\x42\x30\n\x18io.grpc.examples.leveldbB\x0cLevelDBProtoP\x01\xa2\x02\x03HLWb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'database_pb2', globals())
@@ -21,14 +21,22 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'\n\030io.grpc.examples.leveldbB\014LevelDBProtoP\001\242\002\003HLW'
-  _GETREQUEST._serialized_start=28
-  _GETREQUEST._serialized_end=53
-  _GETRESPONSE._serialized_start=55
-  _GETRESPONSE._serialized_end=83
-  _PUTREQUEST._serialized_start=85
-  _PUTREQUEST._serialized_end=125
-  _PUTRESPONSE._serialized_start=127
-  _PUTRESPONSE._serialized_end=158
-  _DATABASE._serialized_start=160
-  _DATABASE._serialized_end=278
+  _KEYSTOMOVEREQUEST._serialized_start=28
+  _KEYSTOMOVEREQUEST._serialized_end=60
+  _KEYSTOMOVERESPONSE._serialized_start=62
+  _KEYSTOMOVERESPONSE._serialized_end=99
+  _EMPTYPARAMS._serialized_start=101
+  _EMPTYPARAMS._serialized_end=114
+  _MEMORYUSAGERESPONSE._serialized_start=116
+  _MEMORYUSAGERESPONSE._serialized_end=153
+  _GETREQUEST._serialized_start=155
+  _GETREQUEST._serialized_end=180
+  _GETRESPONSE._serialized_start=182
+  _GETRESPONSE._serialized_end=210
+  _PUTREQUEST._serialized_start=212
+  _PUTREQUEST._serialized_end=252
+  _PUTRESPONSE._serialized_start=254
+  _PUTRESPONSE._serialized_end=285
+  _DATABASE._serialized_start=288
+  _DATABASE._serialized_end=558
 # @@protoc_insertion_point(module_scope)
