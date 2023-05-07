@@ -27,6 +27,10 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         self.AddOrRemoveNodes = futures.ThreadPoolExecutor(max_workers= 2) 
         self.updateNode = futures.ThreadPoolExecutor(max_workers= 10)
         self.clusterNameToIpMap = self.populateClusterNameToIp()
+        print("=========================Current cluster Mapping===========================")
+        print(self.clusterNameToIpMap)
+        print("===========================================================================")
+        
         self.nodes = self.clusterNameToIpMap.keys()
         for node in self.nodes:
             self.appendToRing(node)
@@ -165,7 +169,8 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         children = self.zk.get_children("/")
         for c in children:
             if "cluster:" in c:
-                if self.zk.exists("/{}/election/leader".format(c), watch=self.watchLeaderFile) is not None:
+                self.zk.exists("/{}/election".format(c), watch= self.watchLeaderFile)
+                if self.zk.exists("/{}/election/leader".format(c)) is not None:
                     data = self.zk.get("/{}/election/leader".format(c))
                     result[c]= LOCALHOST_STR+"{}".format(data[0].decode())
                 else:
@@ -174,10 +179,12 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         
     def watchLeaderFile(self, event):
         if event.type == EventType.DELETED:
-            self.clusterNameToIpMap[event.path.split("/")[1]] = ""
+            if "leader" in event.path:
+                self.clusterNameToIpMap[event.path.split("/")[1]] = ""
         elif event.type == EventType.CREATED:
-            data = self.zk.get(event.path)
-            self.clusterNameToIpMap[event.path.split("/")[1]] = LOCALHOST_STR+"{}".format(data[0].decode())
+            if "leader" in event.path:
+                data = self.zk.get(event.path)
+                self.clusterNameToIpMap[event.path.split("/")[1]] = LOCALHOST_STR+"{}".format(data[0].decode())
             
     #endregion
     
