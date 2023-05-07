@@ -106,7 +106,7 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
     
     #Does this require kazoo?
     def setupRSMNodes(self):
-        result= getAvailablePorts()
+        result= self.getAvailablePorts()
         script = '''\
     tmux new -d -s {0}
     tmux new-window -d -t {0} -n {1}_1
