@@ -22,10 +22,15 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         self.checkForLoad = futures.ThreadPoolExecutor(max_workers= 10)  #Should ideally be equal to number of physcial nodes
         self.AddOrRemoveNodes = futures.ThreadPoolExecutor(max_workers= 2) 
         self.updateNode = futures.ThreadPoolExecutor(max_workers= 10)
+        self.clusterNameToIpMap = self.populateClusterNameToIp()
+    
         for node in nodes:
             self.appendToRing(node)
         self.checkLoad()
         
+    def populateClusterNameToIp(self):
+        #TODO : need to read the zookeeper and populate it. 
+        pass
 
     #region Exposed API's
     def Get(self,request, context):
@@ -61,11 +66,13 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         checkLoadThreads = [self.checkForLoad.submit(self.__serverLoad, node= node) for node in self.nodes]
    
     def __add_node(self):
-        newPorts = self.setupRSMNodes()
-        owners = self.appendToRing(LOCALHOST_STR+newPorts[0])
+        newClusterLeader, newClusterName = self.setupRSMNodes()
+        self.clusterNameToIpMap[newClusterName] = newClusterLeader
+        previousOwners = self.appendToRing(newClusterName)
+        
         #Call Physical nodes to get all keys
-        for i in range(len(owners)):
-            self.updateNode.submit(self.__fetchAndUpdateData ,address = owners[i][0], start_key= owners[i][1], end_key= owners[i][3], newNodeAddress= newPorts[0])
+        for i in range(len(previousOwners)):
+            self.updateNode.submit(self.__fetchAndUpdateData ,address = previousOwners[i][0], start_key= previousOwners[i][1], end_key= previousOwners[i][3], newNodeAddress= getLeaderNodeOfCluster(newClusterName))
         
     
     def __fetchAndUpdateData(self, address, start_key, end_key,newNodeAddress):
@@ -77,18 +84,18 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
                         #for every entry we are getting the key and store it as the string format. 
                         putResposne = stub.Put(database_pb2.PutRequest(key=keysToMoveResponse(i).key, value=keysToMoveResponse(i).value))
                         
-    def appendToRing(self, node):
+    def appendToRing(self, clusterName):
         previousOwners =  []
         for i in range(self.no_of_virtual_nodes):
-            key = f'{node}:{i}'
+            key = f'{clusterName}:{i}'
             physicalNode, leftVirtualHash, virtualHash = self.get_node(key)
             previousOwners.append([physicalNode, leftVirtualHash, virtualHash, key])
-            self.ring[self.hash_key(key)] = node
+            self.ring[self.hash_key(key)] = clusterName
         return previousOwners
 
-    def remove_node(self, node):
+    def remove_node(self, clusterName):
         for i in range(self.no_of_virtual_nodes):
-            key = f'{node}:{i}'
+            key = f'{clusterName}:{i}'
             del self.ring[self.hash_key(key)]
 
     def get_node(self, key):
@@ -99,7 +106,8 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         node_keys = sorted(self.ring.keys())
         hash_index = bisect.bisect_right(node_keys, hash_key) % len(node_keys)
         hash_left_index = bisect.bisect_left(node_keys, hash_key) % len(node_keys)
-        return self.ring[node_keys[hash_index]] , hash_left_index, hash_index 
+        physicalNode = self.getLeaderNodeOfCluster(self.ring[node_keys[hash_index]])
+        return  physicalNode, hash_left_index, hash_index 
 
     def hash_key(self, key):
         return int(hashlib.md5(key.encode('utf-8')).hexdigest(), 16)
@@ -140,6 +148,9 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
                 result.append(s.getsockname()[1])
         return result
     #endregion
+
+def getLeaderNodeOfCluster(self,clusterName):
+    return self.clusterNameToIpMap[clusterName]
 
 
 def serve(nodes, no_of_virtual_nodes):
