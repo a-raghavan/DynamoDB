@@ -35,6 +35,7 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         for node in self.nodes:
             self.appendToRing(node)
         self.checkLoad()
+        
 
     #region Exposed API's
     def Get(self,request, context):
