@@ -9,7 +9,6 @@ import random
 import leveldb
 from concurrent import futures
 import threading
-from leveldb.stats import stats_to_dict
 
 import grpc
 import rsm_pb2
@@ -57,11 +56,7 @@ class Leader(database_pb2_grpc.DatabaseServicer):
         return database_pb2.KeysToMoveResponse(entries=keys)
     
     def IsMemoryUsageHigh(self, request, context):
-        stats = self.rsm.db.GetProperty(b'statistics')
-        stats_dict = stats_to_dict(stats)
-        memory_usage_bytes = stats_dict['leveldb.cur-size-active-mem-table'] + \
-               stats_dict['leveldb.cur-size-all-mem-tables'] + \
-               stats_dict['leveldb.estimate-table-readers-mem']
+        memory_usage_bytes = self.rsm.db.property_value(leveldb.DBProperty.leveldb_stats)["leveldb.stats"]['leveldb.approximate-sizes'][-1]
         if(memory_usage_bytes / (1024 * 1024) > 4):
             return database_pb2.MemoryUsageResponse(isHigh=True)
         return database_pb2.MemoryUsageResponse(isHigh=False)
@@ -120,13 +115,13 @@ class LeaderElection:
     
     def contest(self) -> None:
         # Contest in election
-        self.rsm.zk.ensure_path("/election")
+        self.rsm.zk.ensure_path("/{}/election".format(self.rsm.clusterName))
 
         peerNumProcessedEntries = -1
         peerid = ""
         while peerNumProcessedEntries == -1:
             # can't proceed since we have only 1 active node (that is us)
-            children = self.rsm.zk.get_children("/cluster")
+            children = self.rsm.zk.get_children("/{}/cluster".format(self.rsm.clusterName))
             for c in children:
                 if c != self.myID:
                     try:
@@ -144,15 +139,15 @@ class LeaderElection:
         if peerNumProcessedEntries <= len(self.rsm.log):
             # Try to become a leader
             try:
-                self.rsm.zk.create("/election/leader", value=bytes(self.myID, encoding='utf8'), ephemeral=True)
+                self.rsm.zk.create("/{}/election/leader".format(self.rsm.clusterName), value=bytes(self.myID, encoding='utf8'), ephemeral=True)
                 self.currLeader = self.myID
             except zke.NodeExistsError:
                 # leader already exists
-                data = self.rsm.zk.get("/election/leader", watch=self.rsm.watchLeaderFile)
+                data = self.rsm.zk.get("/{}/election/leader".format(self.rsm.clusterName), watch=self.rsm.watchLeaderFile)
                 self.currLeader = data[0].decode()
         else:
             # allow peer to become the leader as it has a longer log
-            self.rsm.zk.exists("/election/leader", watch=self.rsm.watchLeaderFile)
+            self.rsm.zk.exists("/{}/election/leader".format(self.rsm.clusterName), watch=self.rsm.watchLeaderFile)
             self.currLeader = peerid
     
     def leader(self) -> bool:
@@ -206,7 +201,7 @@ class ReplicatedStateMachine:
             # ignore if file not found
             return
         
-    def __init__(self, port, peers):
+    def __init__(self, port, peers, clusterName):
         self.zk = KazooClient(hosts='127.0.0.1:2181')
         self.zk.start()
         self.isFollower = True
@@ -214,14 +209,15 @@ class ReplicatedStateMachine:
         self.port = port
         self.log = []       # log of ReplicatedLogEntries
         self.peers = peers
-
+        self.clusterName= clusterName
+        
         self.retreivePersistedLog()
 
         #set up levelDB
         self.setupDB(port)
 
-        self.zk.ensure_path("/cluster")
-        self.zk.create("/cluster/"+self.port, ephemeral=True)
+        self.zk.ensure_path("/{}/cluster".format(self.clusterName))
+        self.zk.create("/{}/cluster/".format(self.clusterName)+self.port, ephemeral=True)
         
         self.replicateFollower1 = futures.ThreadPoolExecutor(max_workers=1)
         self.replicateFollower2 = futures.ThreadPoolExecutor(max_workers=1)
@@ -239,7 +235,7 @@ class ReplicatedStateMachine:
         if event.type == EventType.DELETED:
             self.isFollower = False
         elif event.type == EventType.CREATED:
-            data = self.zk.get("/election/leader")
+            data = self.zk.get("/{}/election/leader".format(self.clusterName))
             self.electionModule.currLeader = data[0].decode()
 
     def run(self):
@@ -354,8 +350,9 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument('-p', '--port', help='My replicated state machine port', required=True)
+    parser.add_argument('-cn', '--cName', help='cluster name', required=True)
     parser.add_argument('-n', '--nodes', nargs='*', help='node-ports of all quorum nodes (space separated). e.g. -n 10.0.0.1:5001 10.0.0.1:5002 10.0.0.1:5003', required=True)
     args = parser.parse_args()
 
-    rsm = ReplicatedStateMachine(args.port, othernodes(args.nodes, args.port))     # port will act as unique ID
+    rsm = ReplicatedStateMachine(args.port, othernodes(args.nodes, args.port), args.cName)     # port will act as unique ID
     rsm.run()

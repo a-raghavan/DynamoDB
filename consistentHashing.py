@@ -9,28 +9,28 @@ import consistentHashing_pb2_grpc
 from concurrent import futures
 import subprocess as sp
 import time
+from kazoo.client import KazooClient
+import kazoo.exceptions as zke
+from kazoo.protocol.states import EventType
 
 SESSION_STR = 'rsm'
 LOCALHOST_STR = '127.0.0.1:'
 
 
 class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
-    def __init__(self, nodes, no_of_virtual_nodes):
+    def __init__(self, no_of_virtual_nodes):
+        self.zk = KazooClient(hosts='127.0.0.1:2181')
+        self.zk.start()
         self.no_of_virtual_nodes = no_of_virtual_nodes
         self.ring = {}
-        self.nodes= nodes
         self.checkForLoad = futures.ThreadPoolExecutor(max_workers= 10)  #Should ideally be equal to number of physcial nodes
         self.AddOrRemoveNodes = futures.ThreadPoolExecutor(max_workers= 2) 
         self.updateNode = futures.ThreadPoolExecutor(max_workers= 10)
         self.clusterNameToIpMap = self.populateClusterNameToIp()
-    
-        for node in nodes:
+        self.nodes = self.clusterNameToIpMap.keys()
+        for node in self.nodes:
             self.appendToRing(node)
         self.checkLoad()
-        
-    def populateClusterNameToIp(self):
-        #TODO : need to read the zookeeper and populate it. 
-        pass
 
     #region Exposed API's
     def Get(self,request, context):
@@ -68,6 +68,7 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
     def __add_node(self):
         newClusterLeader, newClusterName = self.setupRSMNodes()
         self.clusterNameToIpMap[newClusterName] = newClusterLeader
+        self.nodes.append(newClusterName)
         previousOwners = self.appendToRing(newClusterName)
         
         #Call Physical nodes to get all keys
@@ -115,28 +116,37 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
     #Does this require kazoo?
     def setupRSMNodes(self):
         result= self.getAvailablePorts()
+        clusterName ="cluster:{}:{}:{}".format(result[0], result[1], result[2])
         script = '''\
     tmux new -d -s {0}
     tmux new-window -d -t {0} -n {1}_1
     tmux select-window -t '={1}_1'
-    tmux send-keys -t 0  "python3 rsm.py -p {2} -n localhost:{2} localhost:{3} localhost:{4}" Enter
+    tmux send-keys -t 0  "python3 rsm.py -p {2} -n localhost:{2} localhost:{3} localhost:{4} -cn {5}" Enter
 
     tmux new-window -d -t {0} -n {1}_2
     tmux select-window -t '={1}_2'
-    tmux send-keys -t 0  "python3 rsm.py -p {3} -n localhost:{2} localhost:{3} localhost:{4}" Enter
+    tmux send-keys -t 0  "python3 rsm.py -p {3} -n localhost:{2} localhost:{3} localhost:{4} -cn {5}" Enter
 
     tmux new-window -d -t {0} -n {1}_3
     tmux select-window -t '={1}_3'
-    tmux send-keys -t 0  "python3 rsm.py -p {4} -n localhost:{2} localhost:{3} localhost:{4}" Enter
+    tmux send-keys -t 0  "python3 rsm.py -p {4} -n localhost:{2} localhost:{3} localhost:{4} -cn {5}" Enter
         '''.format(
                 SESSION_STR,
                 "node_{}".format(len(self.nodes)),
                 result[0],
                 result[1],
-                result[2]
+                result[2],
+                clusterName
             )
         sp.check_call('{}'.format(script), shell=True)
-        return result
+        
+        
+        while(self.zk.exists("/{}/election/leader".format(clusterName), watch=self.watchLeaderFile) is None):
+            time.sleep(0.5)
+            
+        leaderPort = self.zk.get("/{}/election/leader".format(clusterName))
+        leader = LOCALHOST_STR+"{}".format(leaderPort[0].decode())
+        return leader, clusterName
 
     def getAvailablePorts():
         result =[]
@@ -149,14 +159,36 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         return result
     #endregion
 
-def getLeaderNodeOfCluster(self,clusterName):
-    return self.clusterNameToIpMap[clusterName]
+    #region Zookeeper
+    def populateClusterNameToIp(self):
+        result = {}
+        children = self.zk.get_children("/")
+        for c in children:
+            if "cluster:" in c:
+                if self.zk.exists("/{}/election/leader".format(c), watch=self.watchLeaderFile) is not None:
+                    data = self.zk.get("/{}/election/leader".format(c))
+                    result[c]= LOCALHOST_STR+"{}".format(data[0].decode())
+                else:
+                    result[c]= ""
+        return result     
+        
+    def watchLeaderFile(self, event):
+        if event.type == EventType.DELETED:
+            self.clusterNameToIpMap[event.path.split("/")[1]] = ""
+        elif event.type == EventType.CREATED:
+            data = self.zk.get(event.path)
+            self.clusterNameToIpMap[event.path.split("/")[1]] = LOCALHOST_STR+"{}".format(data[0].decode())
+            
+    #endregion
+    
+    def getLeaderNodeOfCluster(self,clusterName):
+        return self.clusterNameToIpMap[clusterName]
 
 
-def serve(nodes, no_of_virtual_nodes):
+def serve(no_of_virtual_nodes):
     port = '50051'
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    consistentHashing_pb2_grpc.add_ConsistentHashingServicer_to_server(ConsistentHashing(nodes, no_of_virtual_nodes), server)
+    consistentHashing_pb2_grpc.add_ConsistentHashingServicer_to_server(ConsistentHashing(no_of_virtual_nodes), server)
     server.add_insecure_port('[::]:' + port)
     server.start()
     print("Server started, listening on " + port)
@@ -164,6 +196,5 @@ def serve(nodes, no_of_virtual_nodes):
 
 
 if __name__ == '__main__':  
-    nodes = ["127.0.0.1:5000","127.0.0.1:5001","127.0.0.1:5002"]  
     no_of_virtual_nodes = 3
-    serve(nodes, no_of_virtual_nodes)
+    serve(no_of_virtual_nodes)
