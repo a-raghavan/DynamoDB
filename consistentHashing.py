@@ -29,18 +29,19 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
 
     #region Exposed API's
     def Get(self,request, context):
-        physicalNode,leftVirtualHash, virtualHash = self.get_node(key)
+        physicalNode,leftVirtualHash, virtualHash = self.get_node(request.key)
         with grpc.insecure_channel(physicalNode) as channel:
             stub = database_pb2_grpc.DatabaseStub(channel)
-            response= stub.Get(database_pb2.GetRequest(key=request.key))
-            return consistentHashing_pb2.GetResponse(value=response)
+            response= stub.Get(database_pb2.GetRequest(key=str(virtualHash)))
+            [actualKey,actualValue] = response.split("~")
+            return consistentHashing_pb2.GetResponse(value=actualValue)
     
     def Put(self,request, context):
-        physicalNode, leftVirtualHash, virtualHash = self.get_node(key)
+        physicalNode, leftVirtualHash, virtualHash = self.get_node(request.key)
         with grpc.insecure_channel(physicalNode) as channel:
             stub = database_pb2_grpc.DatabaseStub(channel)
-            #todo :: Update value to have object of key value pairs
-            stub.Put(database_pb2.PutRequest(key=self.hash_key(), value=request.value))
+            dbValue = request.key+"~"+request.value
+            stub.Put(database_pb2.PutRequest(key=str(virtualHash), value=dbValue))
             return consistentHashing_pb2.PutResponse(errormsg="")
     #endregion
 
@@ -60,8 +61,8 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         checkLoadThreads = [self.checkForLoad.submit(self.__serverLoad, node= node) for node in self.nodes]
    
     def __add_node(self):
-        newPorts = setupRSMNodes()
-        owners = appendToRing(LOCALHOST_STR+newPorts[0])
+        newPorts = self.setupRSMNodes()
+        owners = self.appendToRing(LOCALHOST_STR+newPorts[0])
         #Call Physical nodes to get all keys
         for i in range(len(owners)):
             self.updateNode.submit(self.__fetchAndUpdateData ,address = owners[i][0], start_key= owners[i][1], end_key= owners[i][3], newNodeAddress= newPorts[0])
@@ -70,10 +71,11 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
     def __fetchAndUpdateData(self, address, start_key, end_key,newNodeAddress):
         with grpc.insecure_channel(address) as channel:
                 stub = database_pb2_grpc.DatabaseStub(channel)
-                response = stub.KeysToMove(database_pb2.KeysToMoveRequest(startKey= start_key, endKey = end_key))
+                keysToMoveResponse = stub.KeysToMove(database_pb2.KeysToMoveRequest(startKey= start_key, endKey = end_key)) 
                 with grpc.insecure_channel(newNodeAddress) as channel:
-                    for i in range(len(response.entries)):
-                        resposne = stub.Put(database_pb2.PutRequest(key=self.hash_key(), value=request.value))
+                    for i in range(len(keysToMoveResponse.entries)):
+                        #for every entry we are getting the key and store it as the string format. 
+                        putResposne = stub.Put(database_pb2.PutRequest(key=keysToMoveResponse(i).key, value=keysToMoveResponse(i).value))
                         
     def appendToRing(self, node):
         previousOwners =  []
@@ -104,7 +106,7 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
     
     #Does this require kazoo?
     def setupRSMNodes(self):
-        result= getAvailablePorts()
+        result= self.getAvailablePorts()
         script = '''\
     tmux new -d -s {0}
     tmux new-window -d -t {0} -n {1}_1
