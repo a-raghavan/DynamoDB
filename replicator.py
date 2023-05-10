@@ -64,7 +64,7 @@ class Leader(database_pb2_grpc.DatabaseServicer, antientropy_pb2_grpc.AntiEntrop
         print("Server started, listening on " + "50051")
         server.wait_for_termination()
 
-class Follower(antientropy_pb2_grpc.RSMServicer):
+class Follower(antientropy_pb2_grpc.AntiEntropyServicer):
     '''
     Follower class that listens to AppendEntries to replicate distributed log
     '''
@@ -129,8 +129,8 @@ class ReplicatedStateMachine:
         Helper method to set up levelDB
         '''
         dbpath = './{}_db'.format(id)
-        #from shutil import rmtree
-        #rmtree(dbpath, ignore_errors=True)
+        from shutil import rmtree
+        rmtree(dbpath, ignore_errors=True)
         self.db = leveldb.LevelDB(dbpath)
         
     def __init__(self, port, peers):
@@ -147,8 +147,8 @@ class ReplicatedStateMachine:
         self.zk.ensure_path("/cluster")
         self.zk.create("/cluster/"+self.port, ephemeral=True)
         
-        self.replicateFollower = [futures.ThreadPoolExecutor(max_workers=10), futures.ThreadPoolExecutor(max_workers=10)]
-        self.concurrentRequests = [{}, {}]
+        self.replicateFollower = [futures.ThreadPoolExecutor(max_workers=1), futures.ThreadPoolExecutor(max_workers=1)]
+        self.concurrentRequests = [set([]), set([])]
         self.concurrentRequestsLock = [threading.Lock(), threading.Lock()]
         
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -224,8 +224,7 @@ class ReplicatedStateMachine:
                     continue
 
         with self.concurrentRequestsLock[threadpoolidx]:   
-            self.concurrentRequests[threadpoolidx].pop(currentry.key)
-        
+            self.concurrentRequests[threadpoolidx].remove(currentry.key)
         return
     
     def put(self, key, value):
@@ -235,8 +234,8 @@ class ReplicatedStateMachine:
         currentry = Entry(key, value)
 
         # Submit jobs to append entries in followers
-        f1 = self.replicateFollower1.submit(self.__appendEntries, threadpoolidx=0, currentry=currentry)
-        f2 = self.replicateFollower2.submit(self.__appendEntries, threadpoolidx=1, currentry=currentry)
+        f1 = self.replicateFollower[0].submit(self.__appendEntries, threadpoolidx=0, currentry=currentry)
+        f2 = self.replicateFollower[1].submit(self.__appendEntries, threadpoolidx=1, currentry=currentry)
 
         while True:
             # If either one is done, majority replication achieved. break
