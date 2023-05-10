@@ -141,8 +141,3 @@ def createBucket(lst):
         bucket.append(antientropy_pb2.BucketEntry(key=lst[i], value=lst[i+1]))
         i += 2
     return bucket
-
-if __name__ == "__main__":
-    range = [createBucket(["a", "b", "c", "d"]), createBucket(["e","f"]), createBucket(["g","h"]), createBucket(["i","j"]), createBucket(["k","l"])]
-    mt = MerkleTree(range, False)
-    mt.sync_client(mt.root, "")

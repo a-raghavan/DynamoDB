@@ -9,6 +9,17 @@ package ae;
 
 service AntiEntropy {
   rpc Sync (SyncRequest) returns (SyncResponse) {}
+  rpc AppendEntries (AppendEntriesRequest) returns (AppendEntriesResponse) {}
+}
+
+message AppendEntriesRequest {
+  string command = 1;
+  string key = 2;
+  string value = 3;
+}
+
+message AppendEntriesResponse {
+  bool success = 1;
 }
 
 message BucketEntry {

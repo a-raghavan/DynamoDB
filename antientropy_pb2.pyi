@@ -5,6 +5,22 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class AppendEntriesRequest(_message.Message):
+    __slots__ = ["command", "key", "value"]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    command: str
+    key: str
+    value: str
+    def __init__(self, command: _Optional[str] = ..., key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
+class AppendEntriesResponse(_message.Message):
+    __slots__ = ["success"]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    def __init__(self, success: bool = ...) -> None: ...
+
 class BucketEntry(_message.Message):
     __slots__ = ["key", "value"]
     KEY_FIELD_NUMBER: _ClassVar[int]

@@ -19,12 +19,23 @@ class AntiEntropyStub(object):
                 request_serializer=antientropy__pb2.SyncRequest.SerializeToString,
                 response_deserializer=antientropy__pb2.SyncResponse.FromString,
                 )
+        self.AppendEntries = channel.unary_unary(
+                '/ae.AntiEntropy/AppendEntries',
+                request_serializer=antientropy__pb2.AppendEntriesRequest.SerializeToString,
+                response_deserializer=antientropy__pb2.AppendEntriesResponse.FromString,
+                )
 
 
 class AntiEntropyServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Sync(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AppendEntries(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -37,6 +48,11 @@ def add_AntiEntropyServicer_to_server(servicer, server):
                     servicer.Sync,
                     request_deserializer=antientropy__pb2.SyncRequest.FromString,
                     response_serializer=antientropy__pb2.SyncResponse.SerializeToString,
+            ),
+            'AppendEntries': grpc.unary_unary_rpc_method_handler(
+                    servicer.AppendEntries,
+                    request_deserializer=antientropy__pb2.AppendEntriesRequest.FromString,
+                    response_serializer=antientropy__pb2.AppendEntriesResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -62,5 +78,22 @@ class AntiEntropy(object):
         return grpc.experimental.unary_unary(request, target, '/ae.AntiEntropy/Sync',
             antientropy__pb2.SyncRequest.SerializeToString,
             antientropy__pb2.SyncResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def AppendEntries(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/ae.AntiEntropy/AppendEntries',
+            antientropy__pb2.AppendEntriesRequest.SerializeToString,
+            antientropy__pb2.AppendEntriesResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

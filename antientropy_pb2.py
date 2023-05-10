@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11\x61ntientropy.proto\x12\x02\x61\x65\")\n\x0b\x42ucketEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"J\n\x0bSyncRequest\x12\x0c\n\x04hash\x18\x01 \x01(\t\x12\x0c\n\x04path\x18\x02 \x01(\t\x12\x1f\n\x06\x62ucket\x18\x03 \x03(\x0b\x32\x0f.ae.BucketEntry\"=\n\x0cSyncResponse\x12\x0c\n\x04same\x18\x01 \x01(\x08\x12\x1f\n\x06\x62ucket\x18\x02 \x03(\x0b\x32\x0f.ae.BucketEntry2:\n\x0b\x41ntiEntropy\x12+\n\x04Sync\x12\x0f.ae.SyncRequest\x1a\x10.ae.SyncResponse\"\x00\x42&\n\x13io.grpc.examples.aeB\x07\x41\x45ProtoP\x01\xa2\x02\x03HLWb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11\x61ntientropy.proto\x12\x02\x61\x65\"C\n\x14\x41ppendEntriesRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\x12\x0b\n\x03key\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\t\"(\n\x15\x41ppendEntriesResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\")\n\x0b\x42ucketEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"J\n\x0bSyncRequest\x12\x0c\n\x04hash\x18\x01 \x01(\t\x12\x0c\n\x04path\x18\x02 \x01(\t\x12\x1f\n\x06\x62ucket\x18\x03 \x03(\x0b\x32\x0f.ae.BucketEntry\"=\n\x0cSyncResponse\x12\x0c\n\x04same\x18\x01 \x01(\x08\x12\x1f\n\x06\x62ucket\x18\x02 \x03(\x0b\x32\x0f.ae.BucketEntry2\x82\x01\n\x0b\x41ntiEntropy\x12+\n\x04Sync\x12\x0f.ae.SyncRequest\x1a\x10.ae.SyncResponse\"\x00\x12\x46\n\rAppendEntries\x12\x18.ae.AppendEntriesRequest\x1a\x19.ae.AppendEntriesResponse\"\x00\x42&\n\x13io.grpc.examples.aeB\x07\x41\x45ProtoP\x01\xa2\x02\x03HLWb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'antientropy_pb2', globals())
@@ -21,12 +21,16 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'\n\023io.grpc.examples.aeB\007AEProtoP\001\242\002\003HLW'
-  _BUCKETENTRY._serialized_start=25
-  _BUCKETENTRY._serialized_end=66
-  _SYNCREQUEST._serialized_start=68
-  _SYNCREQUEST._serialized_end=142
-  _SYNCRESPONSE._serialized_start=144
-  _SYNCRESPONSE._serialized_end=205
-  _ANTIENTROPY._serialized_start=207
-  _ANTIENTROPY._serialized_end=265
+  _APPENDENTRIESREQUEST._serialized_start=25
+  _APPENDENTRIESREQUEST._serialized_end=92
+  _APPENDENTRIESRESPONSE._serialized_start=94
+  _APPENDENTRIESRESPONSE._serialized_end=134
+  _BUCKETENTRY._serialized_start=136
+  _BUCKETENTRY._serialized_end=177
+  _SYNCREQUEST._serialized_start=179
+  _SYNCREQUEST._serialized_end=253
+  _SYNCRESPONSE._serialized_start=255
+  _SYNCRESPONSE._serialized_end=316
+  _ANTIENTROPY._serialized_start=319
+  _ANTIENTROPY._serialized_end=449
 # @@protoc_insertion_point(module_scope)
