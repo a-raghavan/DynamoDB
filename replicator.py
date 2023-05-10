@@ -148,8 +148,8 @@ class ReplicatedStateMachine:
         self.zk.create("/cluster/"+self.port, ephemeral=True)
         
         self.replicateFollower = [futures.ThreadPoolExecutor(max_workers=1), futures.ThreadPoolExecutor(max_workers=1)]
-        self.concurrentRequests = [set([]), set([])]
-        self.concurrentRequestsLock = [threading.Lock(), threading.Lock()]
+        self.concurrentRequests = set([])
+        self.concurrentRequestsLock = threading.Lock()
         
         signal.signal(signal.SIGINT, self.signal_handler)
     
@@ -203,15 +203,7 @@ class ReplicatedStateMachine:
     def __appendEntries(self, threadpoolidx, currentry):
         '''
         Thread that appends replicated log enttries to followers
-        '''
-        while True:
-            with self.concurrentRequestsLock[threadpoolidx]:
-                if currentry.key not in self.concurrentRequests[threadpoolidx]:
-                    self.concurrentRequests[threadpoolidx].add(currentry.key)
-                    break
-                time.sleep(0.5)
-                
-
+        '''     
         with grpc.insecure_channel(self.peers[threadpoolidx]) as channel:
             stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
             response = antientropy_pb2.AppendEntriesResponse(success=False)
@@ -219,13 +211,8 @@ class ReplicatedStateMachine:
                 try:
                     response = stub.AppendEntries(antientropy_pb2.AppendEntriesRequest(command= "PUT", key=currentry.key, value=currentry.value), timeout=0.5)
                 except Exception as e:
-                    time.sleep(0.5)
-                    # timeout
-                    continue
-
-        with self.concurrentRequestsLock[threadpoolidx]:   
-            self.concurrentRequests[threadpoolidx].remove(currentry.key)
-        return
+                    return False
+        return True
     
     def put(self, key, value):
         if self.isFollower:
@@ -233,18 +220,27 @@ class ReplicatedStateMachine:
         
         currentry = Entry(key, value)
 
-        # Submit jobs to append entries in followers
-        f1 = self.replicateFollower[0].submit(self.__appendEntries, threadpoolidx=0, currentry=currentry)
-        f2 = self.replicateFollower[1].submit(self.__appendEntries, threadpoolidx=1, currentry=currentry)
+        while True:
+            with self.concurrentRequestsLock:
+                if currentry.key not in self.concurrentRequests:
+                    self.concurrentRequests.add(currentry.key)
+                    break
+                time.sleep(0.5)
 
         while True:
+            # Submit jobs to append entries in followers
+            f1 = self.replicateFollower[0].submit(self.__appendEntries, threadpoolidx=0, currentry=currentry)
+            f2 = self.replicateFollower[1].submit(self.__appendEntries, threadpoolidx=1, currentry=currentry)
             # If either one is done, majority replication achieved. break
-            if f1.done() or f2.done():
+            if f1.result() or f2.result():
                 break
             time.sleep(0.1)
 
         # commit to log after ack from follower
         self.db.Put(bytearray(key, 'utf-8'), bytearray(value, 'utf-8'))
+
+        with self.concurrentRequestsLock:   
+            self.concurrentRequests.remove(currentry.key)
 
         # respond sucess
         return True
