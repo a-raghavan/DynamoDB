@@ -64,9 +64,9 @@ class Leader(database_pb2_grpc.DatabaseServicer):
     def serve(self):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
         database_pb2_grpc.add_DatabaseServicer_to_server(self, server)
-        server.add_insecure_port('[::]:' + "50051")
+        server.add_insecure_port('[::]:' + self.rsm.leaderPort)
         server.start()
-        print("Server started, listening on " + "50051")
+        print("Server started, listening on " + self.rsm.leaderPort)
         server.wait_for_termination()
 
 class Follower(rsm_pb2_grpc.RSMServicer):
@@ -140,6 +140,7 @@ class LeaderElection:
             # Try to become a leader
             try:
                 self.rsm.zk.create("/{}/election/leader".format(self.rsm.clusterName), value=bytes(self.myID, encoding='utf8'), ephemeral=True)
+                self.rsm.zk.create("/{}/election/leaderRSMPort".format(self.rsm.clusterName), value=bytes(self.rsm.leaderPort, encoding='utf8'), ephemeral=True)
                 self.currLeader = self.myID
             except zke.NodeExistsError:
                 # leader already exists
@@ -210,7 +211,7 @@ class ReplicatedStateMachine:
         self.log = []       # log of ReplicatedLogEntries
         self.peers = peers
         self.clusterName= clusterName
-        
+        self.leaderPort = str(self.getAvailablePort())
         self.retreivePersistedLog()
 
         #set up levelDB
@@ -343,6 +344,13 @@ class ReplicatedStateMachine:
         except Exception as e:
             return ""
         return val.decode()
+    
+    def getAvailablePort(self):
+        #Returns Available system port
+        from socket import socket
+        with socket() as s:
+            s.bind(('',0))
+            return s.getsockname()[1]
 
 if __name__ == "__main__":
     

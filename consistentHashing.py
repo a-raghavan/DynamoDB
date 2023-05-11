@@ -38,16 +38,18 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         
 
     #region Exposed API's
-    def Get(self,request, context):
+    def Get(self, request, context):
         physicalNode,leftVirtualHash, virtualHash = self.get_node(request.key)
+        print(physicalNode, leftVirtualHash, virtualHash )
         with grpc.insecure_channel(physicalNode) as channel:
             stub = database_pb2_grpc.DatabaseStub(channel)
             response= stub.Get(database_pb2.GetRequest(key=str(virtualHash)))
-            [actualKey,actualValue] = response.split("~")
+            [actualKey,actualValue] = response.value.split("~")
             return consistentHashing_pb2.GetResponse(value=actualValue)
     
     def Put(self,request, context):
         physicalNode, leftVirtualHash, virtualHash = self.get_node(request.key)
+        print(physicalNode, leftVirtualHash, virtualHash)
         with grpc.insecure_channel(physicalNode) as channel:
             stub = database_pb2_grpc.DatabaseStub(channel)
             dbValue = request.key+"~"+request.value
@@ -108,7 +110,6 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         if not self.ring:
             return None, None, None
         hash_key = self.hash_key(key)
-        print(type(hash_key))
         node_keys = sorted(self.ring.keys())
         hash_index = bisect.bisect_right(node_keys, hash_key) % len(node_keys)
         hash_left_index = bisect.bisect_left(node_keys, hash_key) % len(node_keys)
@@ -146,10 +147,10 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         sp.check_call('{}'.format(script), shell=True)
         
         
-        while(self.zk.exists("/{}/election/leader".format(clusterName), watch=self.watchLeaderFile) is None):
+        while(self.zk.exists("/{}/election/leaderRSMPort".format(clusterName), watch=self.watchLeaderFile) is None):
             time.sleep(0.5)
             
-        leaderPort = self.zk.get("/{}/election/leader".format(clusterName))
+        leaderPort = self.zk.get("/{}/election/leaderRSMPort".format(clusterName))
         leader = LOCALHOST_STR+"{}".format(leaderPort[0].decode())
         return leader, clusterName
 
@@ -171,8 +172,8 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         for c in children:
             if "cluster:" in c:
                 self.zk.exists("/{}/election".format(c), watch= self.watchLeaderFile)
-                if self.zk.exists("/{}/election/leader".format(c)) is not None:
-                    data = self.zk.get("/{}/election/leader".format(c))
+                if self.zk.exists("/{}/election/leaderRSMPort".format(c)) is not None:
+                    data = self.zk.get("/{}/election/leaderRSMPort".format(c))
                     result[c]= LOCALHOST_STR+"{}".format(data[0].decode())
                 else:
                     result[c]= ""
@@ -180,10 +181,10 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         
     def watchLeaderFile(self, event):
         if event.type == EventType.DELETED:
-            if "leader" in event.path:
+            if "leaderRSMPort" in event.path:
                 self.clusterNameToIpMap[event.path.split("/")[1]] = ""
         elif event.type == EventType.CREATED:
-            if "leader" in event.path:
+            if "leaderRSMPort" in event.path:
                 data = self.zk.get(event.path)
                 self.clusterNameToIpMap[event.path.split("/")[1]] = LOCALHOST_STR+"{}".format(data[0].decode())
             
@@ -194,7 +195,7 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
 
 
 def serve(no_of_virtual_nodes):
-    port = '50051'
+    port = '50055'
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     consistentHashing_pb2_grpc.add_ConsistentHashingServicer_to_server(ConsistentHashing(no_of_virtual_nodes), server)
     server.add_insecure_port('[::]:' + port)

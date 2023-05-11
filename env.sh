@@ -13,4 +13,4 @@ yes | sudo apt-get -y install vim
 
 
 wget https://dlcdn.apache.org/zookeeper/zookeeper-3.7.1/apache-zookeeper-3.7.1-bin.tar.gz
-tar -xvf apache-zookeeper-3.7.1-bin.tar.gz apache-zookeeper-3.7.1-bi
+tar -xvf apache-zookeeper-3.7.1-bin.tar.gz

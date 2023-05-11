@@ -1,15 +1,15 @@
 import logging
 import grpc
-import database_pb2
-import database_pb2_grpc
+import consistentHashing_pb2
+import consistentHashing_pb2_grpc
 
 
 def run():
-    with grpc.insecure_channel('localhost:50051') as channel:
-        stub = database_pb2_grpc.DatabaseStub(channel)
-        response = stub.Put(database_pb2.PutRequest(key='GFS', value='Google'))
+    with grpc.insecure_channel('127.0.0.1:50055') as channel:
+        stub = consistentHashing_pb2_grpc.ConsistentHashingStub(channel)
+        response = stub.Put(consistentHashing_pb2.PutRequest(key='GFS', value='Google'))
         print(response.errormsg)
-        response = stub.Get(database_pb2.GetRequest(key='GFS'))
+        response = stub.Get(consistentHashing_pb2.GetRequest(key='GFS'))
         print(response.value)
 
 if __name__ == '__main__':
