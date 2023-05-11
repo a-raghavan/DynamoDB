@@ -32,9 +32,21 @@ bin/zkCli.sh -server 127.0.0.1:2181
 
 Leader default port : 50051
 ```sh
-python3 rsm.py -p 5000 -n localhost:5000 localhost:5001 localhost:5002
-python3 rsm.py -p 5001 -n localhost:5000 localhost:5001 localhost:5002
-python3 rsm.py -p 5002 -n localhost:5000 localhost:5001 localhost:5002
+python3 rsm.py -p 5000 -n localhost:5000 localhost:5001 localhost:5002 -cn cluster:5000:5001:5002
+python3 rsm.py -p 5001 -n localhost:5000 localhost:5001 localhost:5002 -cn cluster:5000:5001:5002
+python3 rsm.py -p 5002 -n localhost:5000 localhost:5001 localhost:5002 -cn cluster:5000:5001:5002
+
+
+
+python3 rsm.py -p 6000 -n localhost:6000 localhost:6001 localhost:6002 -cn cluster:6000:6001:6002
+python3 rsm.py -p 6001 -n localhost:6000 localhost:6001 localhost:6002 -cn cluster:6000:6001:6002
+python3 rsm.py -p 6002 -n localhost:6000 localhost:6001 localhost:6002 -cn cluster:6000:6001:6002
+
+
+
+python3 rsm.py -p 7000 -n localhost:7000 localhost:7001 localhost:7002 -cn cluster:7000:7001:7002
+python3 rsm.py -p 7001 -n localhost:7000 localhost:7001 localhost:7002 -cn cluster:7000:7001:7002
+python3 rsm.py -p 7002 -n localhost:7000 localhost:7001 localhost:7002 -cn cluster:7000:7001:7002
 ```
 
 # Run physicalnode.py
