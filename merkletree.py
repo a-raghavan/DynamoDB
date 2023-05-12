@@ -65,7 +65,7 @@ class MerkleTree(antientropy_pb2_grpc.AntiEntropyServicer):
             power += 1
             mul *= 2
         
-        padding = [[antientropy_pb2.BucketEntry(key="opo", value="pop")]]* (mul-n)
+        padding = [[antientropy_pb2.BucketEntry(key=range[-1][0].key, value=range[-1][0].value)]]* (mul-n)
         range.extend(padding)
     
     def print(self):

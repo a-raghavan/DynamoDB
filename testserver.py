@@ -1,5 +1,8 @@
-from merkletree import *
+from merklepatricia import *
+import leveldb
 
-if __name__ == "__main__":
-    range = [createBucket(["a", "b", "c", "d"]), createBucket(["e","f"]), createBucket(["g","h"]), createBucket(["i","j", "x", "y"]), createBucket(["k","l"])]
-    mt = MerkleTree(range, True)
+db1 = leveldb.LevelDB("db1")
+itr1 = db1.RangeIter()
+items1 = [(k,v) for k,v in itr1]
+
+mp = MerklePatriciaTrie(True, items1, db1)

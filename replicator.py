@@ -190,11 +190,28 @@ class ReplicatedStateMachine:
         self.zk.stop()
         sys.exit(0)
     
+    def getLevelDBEntries(self, low, high):
+        itr = self.db.RangeIter(bytearray(low, encoding="utf8"), bytearray(high, encoding="utf8"))
+        range = []
+        for key, value in itr:
+            range.append([antientropy_pb2.BucketEntry(key=key.decode(), value=value.decode())])
+        return range   
+
     def follower_function(self):
         '''
         Wait for replication events from leader
         '''
         print("I hate following others ")
+
+        with grpc.insecure_channel("localhost:" + str(self.electionModule.currLeader)) as channel:
+            stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
+            while True:
+                try:
+                    stub.CreateMerkleTree(antientropy_pb2.CreateMerkleTreeRequest(), timeout=0.5)
+                    break
+                except Exception as e:
+                    continue
+
         follower = Follower(self)
         while self.isFollower:
             time.sleep(1)

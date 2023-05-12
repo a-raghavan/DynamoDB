@@ -1,8 +1,9 @@
-from merkletree import *
+from merklepatricia import *
+import leveldb
 
-if __name__ == "__main__":
-    range = [createBucket(["a", "b", "c", "d"]), createBucket(["e","f", "m", "n"]), createBucket(["g","h"]), createBucket(["i","j"]), createBucket(["k","l"])]
-    mt = MerkleTree(range, False)
-    mt.sync_client(mt.root,"")
-    print("SYNCED!!!")
-    mt.print()
+db2 = leveldb.LevelDB("db2")
+itr2 = db2.RangeIter()
+items2 = [(k,v) for k,v in itr2]
+
+mp = MerklePatriciaTrie(False, items2, db2)
+mp.sync_client(mp.root, "")
