@@ -64,7 +64,7 @@ class Leader(database_pb2_grpc.DatabaseServicer):
         return database_pb2.PutResponse(errormsg="")
 
     def serve(self):
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         database_pb2_grpc.add_DatabaseServicer_to_server(self, server)
         server.add_insecure_port('[::]:' + "50051")
         server.start()
@@ -81,7 +81,7 @@ class Follower(antientropy_pb2_grpc.AntiEntropyServicer):
         _thread.start()
 
     def __grpcServerThread(self):
-        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))    # TODO increase max_workers
+        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))    # TODO increase max_workers
         antientropy_pb2_grpc.add_AntiEntropyServicer_to_server(self, self.server)
         self.server.add_insecure_port('[::]:' + self.rsm.port)
         self.server.start()
@@ -154,7 +154,7 @@ class ReplicatedStateMachine:
         self.zk.ensure_path("/cluster")
         self.zk.create("/cluster/"+self.port, ephemeral=True)
         
-        self.replicateFollower = [futures.ThreadPoolExecutor(max_workers=1), futures.ThreadPoolExecutor(max_workers=1)]
+        self.replicateFollower = [futures.ThreadPoolExecutor(max_workers=10), futures.ThreadPoolExecutor(max_workers=10)]
         self.concurrentRequests = set([])
         self.concurrentRequestsLock = threading.Lock()
         
@@ -204,10 +204,14 @@ class ReplicatedStateMachine:
         print("I hate following others ")
 
         mp = MerklePatriciaTrie(False, self.db, self.electionModule.currLeader)
+        # print("inited merkle tree")
         mp.CreateMerkleTree(antientropy_pb2.CreateMerkleTreeRequest(), None)
+        # print("created merkle tree")
         mp.sync_client_wrapper()
+        # print("synced")
 
         follower = Follower(self)
+        # print("follower up")
         while self.isFollower:
             time.sleep(1)
         del follower
@@ -218,19 +222,23 @@ class ReplicatedStateMachine:
         '''     
         with grpc.insecure_channel(self.peers[threadpoolidx]) as channel:
             stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
+            # print("A")
             response = antientropy_pb2.AppendEntriesResponse(success=False)
             while response.success == False:
                 try:
                     response = stub.AppendEntries(antientropy_pb2.AppendEntriesRequest(command= "PUT", key=currentry.key, value=currentry.value), timeout=0.5)
+                    # print("B")
                 except Exception as e:
+                    # print(e)
                     return False
         return True
     
     def put(self, key, value):
         if self.isFollower:
             return False
-        
+        # print("1")
         currentry = Entry(key, value)
+        # print("2")
 
         while True:
             with self.concurrentRequestsLock:
@@ -238,7 +246,8 @@ class ReplicatedStateMachine:
                     self.concurrentRequests.add(currentry.key)
                     break
                 time.sleep(0.5)
-
+        # print("3")
+        
         while True:
             # Submit jobs to append entries in followers
             f1 = self.replicateFollower[0].submit(self.__appendEntries, threadpoolidx=0, currentry=currentry)
@@ -247,12 +256,15 @@ class ReplicatedStateMachine:
             if f1.result() or f2.result():
                 break
             time.sleep(0.1)
+        # print("4")
 
         # commit to log after ack from follower
         self.db.Put(bytearray(key, 'utf-8'), bytearray(value, 'utf-8'))
+        # print("5")
 
         with self.concurrentRequestsLock:   
             self.concurrentRequests.remove(currentry.key)
+        # print("6")
 
         # respond sucess
         return True

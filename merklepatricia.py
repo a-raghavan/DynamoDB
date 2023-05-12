@@ -83,7 +83,7 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
         done = False
         while (not done):
             try:
-                with grpc.insecure_channel("localhost:60061") as channel:
+                with grpc.insecure_channel("localhost:" + str(self.leaderPort)) as channel:
                     stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
                     if root is None:
                         response = stub.Sync(antientropy_pb2.SyncRequest(hash="", path=path, subtree=[]))
@@ -115,7 +115,7 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
                 done = False
                 while (not done):
                     try:
-                        with grpc.insecure_channel("localhost:60061") as channel:
+                        with grpc.insecure_channel("localhost:" + str(self.leaderPort)) as channel:
                             stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
                             response = stub.Sync(antientropy_pb2.SyncRequest(hash=root.hash, path=path, subtree=self.query(path)))
                             done = True
