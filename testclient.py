@@ -1,9 +1,9 @@
 from merklepatricia import *
+import antientropy_pb2
 import leveldb
 
 db2 = leveldb.LevelDB("db2")
-itr2 = db2.RangeIter()
-items2 = [(k.decode(),v.decode()) for k,v in itr2]
 
-mp = MerklePatriciaTrie(False, items2, db2)
-mp.sync_client(mp.root, "")
+mp = MerklePatriciaTrie(False, db2, 60061)
+mp.CreateMerkleTree(antientropy_pb2.AppendEntriesRequest(), None)
+mp.sync_client_wrapper()

@@ -17,24 +17,21 @@ class MerklePatriciaTrieNode:
 class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
     """The trie object"""
 
-    def __init__(self, isServer, items, db):
+    def __init__(self, isServer, db, leaderPort):
         """
-        Create the trie
+        start grpc server
         """
         self.root = MerklePatriciaTrieNode("")
         self.isServer = isServer
         self.db = db
-        for k, v in items:
-            self.insert(k, v)
-        
-        self.populateHash(self.root)
+        self.leaderPort = leaderPort
 
         if (isServer):
             server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
             antientropy_pb2_grpc.add_AntiEntropyServicer_to_server(self, server)
-            server.add_insecure_port('[::]:' + "50051")
+            server.add_insecure_port('[::]:' + str(leaderPort))
             server.start()
-            print("Server started, listening on " + "50051")
+            print("Server started, listening on " + str(leaderPort))
             server.wait_for_termination()
     
     def populateHash(self, node):
@@ -70,11 +67,23 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
         node.val = val
         return
     
+    def sync_client_wrapper(self):
+        with grpc.insecure_channel("localhost:" + str(self.leaderPort)) as channel:
+            stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
+            while True:
+                try:
+                    stub.CreateMerkleTree(antientropy_pb2.CreateMerkleTreeRequest(), timeout=0.5)
+                    break
+                except Exception as e:
+                    continue
+        
+        self.sync_client(self.root, "")
+
     def sync_client(self, root, path):
         done = False
         while (not done):
             try:
-                with grpc.insecure_channel("localhost:50051") as channel:
+                with grpc.insecure_channel("localhost:60061") as channel:
                     stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
                     if root is None:
                         response = stub.Sync(antientropy_pb2.SyncRequest(hash="", path=path, subtree=[]))
@@ -106,7 +115,7 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
                 done = False
                 while (not done):
                     try:
-                        with grpc.insecure_channel("localhost:50051") as channel:
+                        with grpc.insecure_channel("localhost:60061") as channel:
                             stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
                             response = stub.Sync(antientropy_pb2.SyncRequest(hash=root.hash, path=path, subtree=self.query(path)))
                             done = True
@@ -137,7 +146,16 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
                 return antientropy_pb2.SyncResponse(retcode=2, subtree=self.query(request.path)) # need timestamps
             else:
                 return antientropy_pb2.SyncResponse(retcode=2, subtree=[])
-        
+    
+    def CreateMerkleTree(self, request, context):
+        self.root = MerklePatriciaTrieNode("")
+        itr = self.db.RangeIter()
+        items = [(k.decode(), v.decode()) for k,v in itr]
+        for k, v in items:
+            self.insert(k, v)
+        self.populateHash(self.root)
+        return antientropy_pb2.CreateMerkleTreeResponse()
+
     
     def dfs(self, node, prefix):
         """Depth-first traversal of the trie
@@ -192,8 +210,3 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
             for nibble in node.children:
                 q.append(node.children[nibble])
             q.pop(0)
-        
-            
-
-
-

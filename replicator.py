@@ -15,7 +15,8 @@ import antientropy_pb2
 import antientropy_pb2_grpc
 import database_pb2
 import database_pb2_grpc
-from merkletree import *
+#from merkletree import *
+from merklepatricia import *
 
 import threading
 
@@ -42,12 +43,18 @@ class Entry:
         self.key = key
         self.value = value
 
-class Leader(database_pb2_grpc.DatabaseServicer, antientropy_pb2_grpc.AntiEntropyServicer):
+class Leader(database_pb2_grpc.DatabaseServicer):
     '''
     Leader class that listens for input get/put RPC requests from the upper layer
     '''
+
+    def __listenForAntiEntropySessions(self):
+        mp = MerklePatriciaTrie(True, self.rsm.db, self.rsm.port)
+        
     def __init__(self, rsm):
         self.rsm = rsm 
+        self.merkleTreeListener = threading.Thread(target=self.__listenForAntiEntropySessions)
+        self.merkleTreeListener.start()
     
     def Get(self, request, context):
         return database_pb2.GetResponse(value=self.rsm.get(request.key))
@@ -188,14 +195,7 @@ class ReplicatedStateMachine:
     def signal_handler(self, sig, frame):
         print('You pressed Ctrl+C!')
         self.zk.stop()
-        sys.exit(0)
-    
-    def getLevelDBEntries(self, low, high):
-        itr = self.db.RangeIter(bytearray(low, encoding="utf8"), bytearray(high, encoding="utf8"))
-        range = []
-        for key, value in itr:
-            range.append([antientropy_pb2.BucketEntry(key=key.decode(), value=value.decode())])
-        return range   
+        sys.exit(0) 
 
     def follower_function(self):
         '''
@@ -203,14 +203,9 @@ class ReplicatedStateMachine:
         '''
         print("I hate following others ")
 
-        with grpc.insecure_channel("localhost:" + str(self.electionModule.currLeader)) as channel:
-            stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
-            while True:
-                try:
-                    stub.CreateMerkleTree(antientropy_pb2.CreateMerkleTreeRequest(), timeout=0.5)
-                    break
-                except Exception as e:
-                    continue
+        mp = MerklePatriciaTrie(False, self.db, self.electionModule.currLeader)
+        mp.CreateMerkleTree(antientropy_pb2.CreateMerkleTreeRequest(), None)
+        mp.sync_client_wrapper()
 
         follower = Follower(self)
         while self.isFollower:
