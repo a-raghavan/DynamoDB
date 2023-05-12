@@ -12,7 +12,7 @@ service ConsistentHashing {
   rpc Put (PutRequest) returns (PutResponse) {}
   rpc AddNode (AddNodeRequest) returns (AddNodeResponse) {}
   rpc RemoveNode (PutRequest) returns (PutResponse) {}
-
+  rpc GetRing(EmptyParams) returns (GetRingResponse) {}
 }
 
 
@@ -40,4 +40,17 @@ message PutRequest {
 
 message PutResponse {
   string errormsg = 1;
+}
+
+
+message KVpair{
+  string key = 1;
+  string value = 2;
+}
+
+message GetRingResponse{
+  repeated KVpair ring = 1;
+}
+
+message EmptyParams {
 }

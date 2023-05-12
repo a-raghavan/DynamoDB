@@ -55,6 +55,12 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
             dbValue = request.key+"~"+request.value
             stub.Put(database_pb2.PutRequest(key=str(virtualHash), value=dbValue))
             return consistentHashing_pb2.PutResponse(errormsg="")
+        
+    def GetRing(self, request, context):
+        ring =[]
+        for key, value in self.ring.items():
+            ring.append(consistentHashing_pb2.KVpair(key= key, value=self.clusterNameToIpMap[value]))
+        return consistentHashing_pb2.GetRingResponse(ring=ring)
     #endregion
 
 
@@ -146,11 +152,13 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
             )
         sp.check_call('{}'.format(script), shell=True)
         
-        
-        while(self.zk.exists("/{}/election/leaderRSMPort".format(clusterName), watch=self.watchLeaderFile) is None):
+        #Add watch on new cluster
+        self.zk.exists("/{}/election".format(clusterName, watch=self.watchLeaderFile))
+        while(self.zk.exists("/{}/election/leaderRSMPort".format(clusterName)) is None):
             time.sleep(0.5)
             
         leaderPort = self.zk.get("/{}/election/leaderRSMPort".format(clusterName))
+        
         leader = LOCALHOST_STR+"{}".format(leaderPort[0].decode())
         return leader, clusterName
 
@@ -187,6 +195,9 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
             if "leaderRSMPort" in event.path:
                 data = self.zk.get(event.path)
                 self.clusterNameToIpMap[event.path.split("/")[1]] = LOCALHOST_STR+"{}".format(data[0].decode())
+        print("=========================Current cluster Mapping===========================")
+        print(self.clusterNameToIpMap)
+        print("===========================================================================")
             
     #endregion
     
