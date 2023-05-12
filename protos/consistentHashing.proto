@@ -12,7 +12,15 @@ service ConsistentHashing {
   rpc Put (PutRequest) returns (PutResponse) {}
   rpc AddNode (AddNodeRequest) returns (AddNodeResponse) {}
   rpc RemoveNode (PutRequest) returns (PutResponse) {}
+  rpc Delete (DeleteRequest) returns (DeleteResponse){}
+}
 
+message DeleteRequest {
+  string key = 1;
+}
+
+message DeleteResponse {
+  string errormsg = 1;
 }
 
 

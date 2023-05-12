@@ -12,6 +12,12 @@ def run():
         response = stub.Get(consistentHashing_pb2.GetRequest(key='GFS'))
         print(response.value)
 
+        response = stub.Delete(consistentHashing_pb2.DeleteRequest(key='GFS'))
+        print(response.errormsg)
+
+        response = stub.Get(consistentHashing_pb2.GetRequest(key='GFS'))
+        print(response.value)
+
 if __name__ == '__main__':
     logging.basicConfig()
     run()

@@ -34,10 +34,10 @@ class ConsistentHashingStub(object):
                 request_serializer=consistentHashing__pb2.PutRequest.SerializeToString,
                 response_deserializer=consistentHashing__pb2.PutResponse.FromString,
                 )
-        self.GetRing = channel.unary_unary(
-                '/consistentHashing.ConsistentHashing/GetRing',
-                request_serializer=consistentHashing__pb2.EmptyParams.SerializeToString,
-                response_deserializer=consistentHashing__pb2.GetRingResponse.FromString,
+        self.Delete = channel.unary_unary(
+                '/consistentHashing.ConsistentHashing/Delete',
+                request_serializer=consistentHashing__pb2.DeleteRequest.SerializeToString,
+                response_deserializer=consistentHashing__pb2.DeleteResponse.FromString,
                 )
 
 
@@ -68,7 +68,7 @@ class ConsistentHashingServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetRing(self, request, context):
+    def Delete(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -97,10 +97,10 @@ def add_ConsistentHashingServicer_to_server(servicer, server):
                     request_deserializer=consistentHashing__pb2.PutRequest.FromString,
                     response_serializer=consistentHashing__pb2.PutResponse.SerializeToString,
             ),
-            'GetRing': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetRing,
-                    request_deserializer=consistentHashing__pb2.EmptyParams.FromString,
-                    response_serializer=consistentHashing__pb2.GetRingResponse.SerializeToString,
+            'Delete': grpc.unary_unary_rpc_method_handler(
+                    servicer.Delete,
+                    request_deserializer=consistentHashing__pb2.DeleteRequest.FromString,
+                    response_serializer=consistentHashing__pb2.DeleteResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -181,7 +181,7 @@ class ConsistentHashing(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def GetRing(request,
+    def Delete(request,
             target,
             options=(),
             channel_credentials=None,
@@ -191,8 +191,8 @@ class ConsistentHashing(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/consistentHashing.ConsistentHashing/GetRing',
-            consistentHashing__pb2.EmptyParams.SerializeToString,
-            consistentHashing__pb2.GetRingResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/consistentHashing.ConsistentHashing/Delete',
+            consistentHashing__pb2.DeleteRequest.SerializeToString,
+            consistentHashing__pb2.DeleteResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

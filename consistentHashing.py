@@ -55,6 +55,14 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
             dbValue = request.key+"~"+request.value
             stub.Put(database_pb2.PutRequest(key=str(virtualHash), value=dbValue))
             return consistentHashing_pb2.PutResponse(errormsg="")
+
+    def Delete(self,request, context):
+        physicalNode, leftVirtualHash, virtualHash = self.get_node(request.key)
+        print(physicalNode, leftVirtualHash, virtualHash)
+        with grpc.insecure_channel(physicalNode) as channel:
+            stub = database_pb2_grpc.DatabaseStub(channel)
+            stub.Delete(database_pb2.DeleteRequest(key=str(virtualHash)))
+            return consistentHashing_pb2.PutResponse(errormsg="Success")
     #endregion
 
 
