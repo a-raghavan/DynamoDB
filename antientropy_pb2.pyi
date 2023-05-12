@@ -21,7 +21,15 @@ class AppendEntriesResponse(_message.Message):
     success: bool
     def __init__(self, success: bool = ...) -> None: ...
 
-class BucketEntry(_message.Message):
+class CreateMerkleTreeRequest(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
+
+class CreateMerkleTreeResponse(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
+
+class KVPair(_message.Message):
     __slots__ = ["key", "value"]
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -30,19 +38,19 @@ class BucketEntry(_message.Message):
     def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
 
 class SyncRequest(_message.Message):
-    __slots__ = ["bucket", "hash", "path"]
-    BUCKET_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["hash", "path", "subtree"]
     HASH_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
-    bucket: _containers.RepeatedCompositeFieldContainer[BucketEntry]
+    SUBTREE_FIELD_NUMBER: _ClassVar[int]
     hash: str
     path: str
-    def __init__(self, hash: _Optional[str] = ..., path: _Optional[str] = ..., bucket: _Optional[_Iterable[_Union[BucketEntry, _Mapping]]] = ...) -> None: ...
+    subtree: _containers.RepeatedCompositeFieldContainer[KVPair]
+    def __init__(self, hash: _Optional[str] = ..., path: _Optional[str] = ..., subtree: _Optional[_Iterable[_Union[KVPair, _Mapping]]] = ...) -> None: ...
 
 class SyncResponse(_message.Message):
-    __slots__ = ["bucket", "same"]
-    BUCKET_FIELD_NUMBER: _ClassVar[int]
-    SAME_FIELD_NUMBER: _ClassVar[int]
-    bucket: _containers.RepeatedCompositeFieldContainer[BucketEntry]
-    same: bool
-    def __init__(self, same: bool = ..., bucket: _Optional[_Iterable[_Union[BucketEntry, _Mapping]]] = ...) -> None: ...
+    __slots__ = ["retcode", "subtree"]
+    RETCODE_FIELD_NUMBER: _ClassVar[int]
+    SUBTREE_FIELD_NUMBER: _ClassVar[int]
+    retcode: int
+    subtree: _containers.RepeatedCompositeFieldContainer[KVPair]
+    def __init__(self, retcode: _Optional[int] = ..., subtree: _Optional[_Iterable[_Union[KVPair, _Mapping]]] = ...) -> None: ...

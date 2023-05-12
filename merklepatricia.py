@@ -77,12 +77,14 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
                 with grpc.insecure_channel("localhost:50051") as channel:
                     stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
                     if root is None:
-                        response = stub.Sync(antientropy_pb2.SyncRequest(hash="", path=path, bucket=[]))
+                        response = stub.Sync(antientropy_pb2.SyncRequest(hash="", path=path, subtree=[]))
                     else:
-                        response = stub.Sync(antientropy_pb2.SyncRequest(hash=root.hash, path=path, bucket=[]))
+                        response = stub.Sync(antientropy_pb2.SyncRequest(hash=root.hash, path=path, subtree=[]))
                     done = True
             except Exception as e:
                 continue
+        
+        # print(path, response)
         
         if response.retcode == 1:    # same in peer
             return
@@ -106,7 +108,7 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
                     try:
                         with grpc.insecure_channel("localhost:50051") as channel:
                             stub = antientropy_pb2_grpc.AntiEntropyStub(channel)
-                            response = stub.Sync(antientropy_pb2.SyncRequest(hash=root.hash, path=path, bucket=self.query(path)))
+                            response = stub.Sync(antientropy_pb2.SyncRequest(hash=root.hash, path=path, subtree=self.query(path)))
                             done = True
                     except Exception as e:
                         continue
@@ -115,7 +117,7 @@ class MerklePatriciaTrie(antientropy_pb2_grpc.AntiEntropyServicer):
     def Sync(self, request, context):
         
         node = self.root
-
+        # print(request)
         for nibble in request.path:
             if nibble in node.children:
                 node = node.children[nibble]

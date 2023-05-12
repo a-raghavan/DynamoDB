@@ -10,6 +10,15 @@ package ae;
 service AntiEntropy {
   rpc Sync (SyncRequest) returns (SyncResponse) {}
   rpc AppendEntries (AppendEntriesRequest) returns (AppendEntriesResponse) {}
+  rpc CreateMerkleTree (CreateMerkleTreeRequest) returns (CreateMerkleTreeResponse) {}
+}
+
+message CreateMerkleTreeRequest {
+  
+}
+
+message CreateMerkleTreeResponse {
+
 }
 
 message AppendEntriesRequest {
@@ -22,7 +31,7 @@ message AppendEntriesResponse {
   bool success = 1;
 }
 
-message BucketEntry {
+message KVPair {
     string key = 1;
     string value = 2;
 }
@@ -30,10 +39,10 @@ message BucketEntry {
 message SyncRequest {
   string hash = 1;
   string path = 2;
-  repeated BucketEntry bucket = 3; 
+  repeated KVPair subtree = 3;
 }
 
 message SyncResponse {
-  bool same = 1;
-  repeated BucketEntry bucket = 2; 
+  int64 retcode = 1;
+  repeated KVPair subtree = 2; 
 }

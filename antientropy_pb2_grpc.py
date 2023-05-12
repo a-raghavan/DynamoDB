@@ -24,6 +24,11 @@ class AntiEntropyStub(object):
                 request_serializer=antientropy__pb2.AppendEntriesRequest.SerializeToString,
                 response_deserializer=antientropy__pb2.AppendEntriesResponse.FromString,
                 )
+        self.CreateMerkleTree = channel.unary_unary(
+                '/ae.AntiEntropy/CreateMerkleTree',
+                request_serializer=antientropy__pb2.CreateMerkleTreeRequest.SerializeToString,
+                response_deserializer=antientropy__pb2.CreateMerkleTreeResponse.FromString,
+                )
 
 
 class AntiEntropyServicer(object):
@@ -41,6 +46,12 @@ class AntiEntropyServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateMerkleTree(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_AntiEntropyServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -53,6 +64,11 @@ def add_AntiEntropyServicer_to_server(servicer, server):
                     servicer.AppendEntries,
                     request_deserializer=antientropy__pb2.AppendEntriesRequest.FromString,
                     response_serializer=antientropy__pb2.AppendEntriesResponse.SerializeToString,
+            ),
+            'CreateMerkleTree': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateMerkleTree,
+                    request_deserializer=antientropy__pb2.CreateMerkleTreeRequest.FromString,
+                    response_serializer=antientropy__pb2.CreateMerkleTreeResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -95,5 +111,22 @@ class AntiEntropy(object):
         return grpc.experimental.unary_unary(request, target, '/ae.AntiEntropy/AppendEntries',
             antientropy__pb2.AppendEntriesRequest.SerializeToString,
             antientropy__pb2.AppendEntriesResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateMerkleTree(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/ae.AntiEntropy/CreateMerkleTree',
+            antientropy__pb2.CreateMerkleTreeRequest.SerializeToString,
+            antientropy__pb2.CreateMerkleTreeResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
