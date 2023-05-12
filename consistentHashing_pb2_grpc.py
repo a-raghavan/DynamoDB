@@ -34,6 +34,11 @@ class ConsistentHashingStub(object):
                 request_serializer=consistentHashing__pb2.PutRequest.SerializeToString,
                 response_deserializer=consistentHashing__pb2.PutResponse.FromString,
                 )
+        self.GetRing = channel.unary_unary(
+                '/consistentHashing.ConsistentHashing/GetRing',
+                request_serializer=consistentHashing__pb2.EmptyParams.SerializeToString,
+                response_deserializer=consistentHashing__pb2.GetRingResponse.FromString,
+                )
 
 
 class ConsistentHashingServicer(object):
@@ -63,6 +68,12 @@ class ConsistentHashingServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetRing(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ConsistentHashingServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -85,6 +96,11 @@ def add_ConsistentHashingServicer_to_server(servicer, server):
                     servicer.RemoveNode,
                     request_deserializer=consistentHashing__pb2.PutRequest.FromString,
                     response_serializer=consistentHashing__pb2.PutResponse.SerializeToString,
+            ),
+            'GetRing': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRing,
+                    request_deserializer=consistentHashing__pb2.EmptyParams.FromString,
+                    response_serializer=consistentHashing__pb2.GetRingResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -161,5 +177,22 @@ class ConsistentHashing(object):
         return grpc.experimental.unary_unary(request, target, '/consistentHashing.ConsistentHashing/RemoveNode',
             consistentHashing__pb2.PutRequest.SerializeToString,
             consistentHashing__pb2.PutResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetRing(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/consistentHashing.ConsistentHashing/GetRing',
+            consistentHashing__pb2.EmptyParams.SerializeToString,
+            consistentHashing__pb2.GetRingResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

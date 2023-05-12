@@ -12,7 +12,18 @@ service Database {
   rpc Put (PutRequest) returns (PutResponse) {}
   rpc IsMemoryUsageHigh (EmptyParams) returns (MemoryUsageResponse) {}
   rpc KeysToMove (KeysToMoveRequest) returns (KeysToMoveResponse) {}
+  rpc Delete(DeleteRequest) returns (DeleteResponse){}
 }
+
+message DeleteRequest {
+  string key = 1;
+}
+
+message DeleteResponse{
+  string errormsg = 1;
+}
+
+
 
 message KeysToMoveRequest{
   string startKey = 1;

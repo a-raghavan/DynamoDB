@@ -87,6 +87,13 @@ class ConsistentHashing(consistentHashing_pb2_grpc.ConsistentHashingServicer):
         with grpc.insecure_channel(address) as channel:
                 stub = database_pb2_grpc.DatabaseStub(channel)
                 keysToMoveResponse = stub.KeysToMove(database_pb2.KeysToMoveRequest(startKey= start_key, endKey = end_key)) 
+                
+                
+                
+                for i in range(len(keysToMoveResponse.entries)):
+                    #We are removing the keys from the previous owners DB.
+                    deleteResposne = stub.Delete(database_pb2.DeleteRequest(key=keysToMoveResponse(i).key))
+                
                 with grpc.insecure_channel(newNodeAddress) as channel:
                     for i in range(len(keysToMoveResponse.entries)):
                         #for every entry we are getting the key and store it as the string format. 

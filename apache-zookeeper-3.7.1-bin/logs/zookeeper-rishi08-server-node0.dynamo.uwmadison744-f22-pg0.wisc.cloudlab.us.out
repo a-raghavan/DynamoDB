@@ -1,0 +1,15 @@
+2023-05-11 15:01:29,020 [myid:] - INFO  [main:QuorumPeerConfig@174] - Reading configuration from: /users/rishi08/DynamoDB/apache-zookeeper-3.7.1-bin/bin/../conf/zoo.cfg
+2023-05-11 15:01:29,022 [myid:] - ERROR [main:QuorumPeerMain@99] - Invalid config, exiting abnormally
+org.apache.zookeeper.server.quorum.QuorumPeerConfig$ConfigException: Error processing /users/rishi08/DynamoDB/apache-zookeeper-3.7.1-bin/bin/../conf/zoo.cfg
+	at org.apache.zookeeper.server.quorum.QuorumPeerConfig.parse(QuorumPeerConfig.java:198)
+	at org.apache.zookeeper.server.quorum.QuorumPeerMain.initializeAndRun(QuorumPeerMain.java:125)
+	at org.apache.zookeeper.server.quorum.QuorumPeerMain.main(QuorumPeerMain.java:91)
+Caused by: java.lang.IllegalArgumentException: /users/rishi08/DynamoDB/apache-zookeeper-3.7.1-bin/bin/../conf/zoo.cfg file is missing
+	at org.apache.zookeeper.server.util.VerifyingFileFactory.doFailForNonExistingPath(VerifyingFileFactory.java:54)
+	at org.apache.zookeeper.server.util.VerifyingFileFactory.validate(VerifyingFileFactory.java:47)
+	at org.apache.zookeeper.server.util.VerifyingFileFactory.create(VerifyingFileFactory.java:39)
+	at org.apache.zookeeper.server.quorum.QuorumPeerConfig.parse(QuorumPeerConfig.java:180)
+	... 2 more
+Invalid config, exiting abnormally
+2023-05-11 15:01:29,025 [myid:] - INFO  [main:ZKAuditProvider@42] - ZooKeeper audit is disabled.
+2023-05-11 15:01:29,027 [myid:] - ERROR [main:ServiceUtils@48] - Exiting JVM with code 2

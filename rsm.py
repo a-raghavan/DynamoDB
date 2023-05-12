@@ -55,6 +55,11 @@ class Leader(database_pb2_grpc.DatabaseServicer):
             keys.append(database_pb2.KVpair(key= key.decode(), value = value.decode()))
         return database_pb2.KeysToMoveResponse(entries=keys)
     
+    def Delete(self,request,context):
+        self.rsm.delete(request.key)
+        return  database_pb2.PutResponse(errormsg="")
+        
+    
     def IsMemoryUsageHigh(self, request, context):
         memory_usage_bytes = self.rsm.db.property_value(leveldb.DBProperty.leveldb_stats)["leveldb.stats"]['leveldb.approximate-sizes'][-1]
         if(memory_usage_bytes / (1024 * 1024) > 4):
@@ -95,7 +100,10 @@ class Follower(rsm_pb2_grpc.RSMServicer):
         # append all entries in the request to my replicated log and return success
         for e in request.entries:
             self.rsm.log.append(e)
-            self.rsm.db.Put(bytearray(e.key, 'utf-8'), bytearray(e.value, 'utf-8'))
+            if(e.command == 'PUT'):
+                self.rsm.db.Put(bytearray(e.key, 'utf-8'), bytearray(e.value, 'utf-8'))
+            else:
+                self.rsm.db.Delete(bytearray(e.key, 'utf-8'))
             self.rsm.persistLog(e)
 
         return rsm_pb2.AppendEntriesResponse(success=True, index=len(self.rsm.log))
@@ -103,6 +111,7 @@ class Follower(rsm_pb2_grpc.RSMServicer):
     def GetCommitIndex(self, request, context):
         # return my log length to peer. Used in leader election
         return rsm_pb2.GetCommitIndexResponse(commitindex=len(self.rsm.log))
+    
 
 class LeaderElection:
     ''' 
@@ -344,6 +353,32 @@ class ReplicatedStateMachine:
         except Exception as e:
             return ""
         return val.decode()
+        
+    
+    def delete(self,key):
+        if self.isFollower:
+            return False
+        
+        currentry = rsm_pb2.LogEntry(command="DELETE", key=key, value="")
+        idx = len(self.log)
+
+        # Submit jobs to append entries in followers
+        f1 = self.replicateFollower1.submit(self.__appendEntries, follower=self.peers[0], currentry=currentry, idx=idx)
+        f2 = self.replicateFollower2.submit(self.__appendEntries, follower=self.peers[1], currentry=currentry, idx=idx)
+
+        while True:
+            # If either one is done, majority replication achieved. break
+            if f1.done() or f2.done():
+                break
+            time.sleep(0.1)
+
+        # commit to log after ack from follower
+        self.log.append(currentry)
+        self.persistLog(currentry)
+        self.db.Delete(bytearray(key, 'utf-8'))
+
+        # respond sucess
+        return True
     
     def getAvailablePort(self):
         #Returns Available system port
